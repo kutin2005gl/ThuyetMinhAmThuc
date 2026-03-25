@@ -1,5 +1,6 @@
-﻿using Microsoft.Maui.Devices.Sensors;
-using Microsoft.Maui..Controls.Maps;
+﻿using Microsoft.Maui.Controls.Maps;
+using Microsoft.Maui.Devices.Sensors;
+using Microsoft.Maui.Maps;
 
 namespace FoodGuideApp
 {
@@ -43,6 +44,11 @@ namespace FoodGuideApp
                 {
                     locationLabel.Text =
                         $"Lat: {location.Latitude:F6}\nLng: {location.Longitude:F6}";
+                    var pos = new Location(location.Latitude, location.Longitude);
+
+                    map.MoveToRegion(
+                        MapSpan.FromCenterAndRadius(pos, Distance.FromMeters(200))
+                    );
                 }
 
                 await Task.Delay(5000, trackingCts.Token);

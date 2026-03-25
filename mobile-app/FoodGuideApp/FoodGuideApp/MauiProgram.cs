@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-
+using Microsoft.Maui.Controls.Hosting;
+using Microsoft.Maui.Hosting;
 namespace FoodGuideApp
 {
     public static class MauiProgram
