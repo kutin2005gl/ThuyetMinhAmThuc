@@ -20,6 +20,24 @@
             <maps:Map x:Name="map"
           HeightRequest="300"
           VerticalOptions="FillAndExpand" />
+            <Label x:Name="stallLabel"
+       Text="Chưa ở gần quầy nào"
+       FontSize="18"
+       TextColor="Red"
+       HorizontalOptions="Center"/>
+            <VerticalStackLayout Spacing="10" HorizontalOptions="Center">
+
+                <Button Text="↑" WidthRequest="60" Clicked="MoveUpClicked"/>
+
+                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <Button Text="←" WidthRequest="60" Clicked="MoveLeftClicked"/>
+                    <Button Text="→" WidthRequest="60" Clicked="MoveRightClicked"/>
+                </HorizontalStackLayout>
+
+                <Button Text="↓" WidthRequest="60" Clicked="MoveDownClicked"/>
+
+            </VerticalStackLayout>
+            
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
