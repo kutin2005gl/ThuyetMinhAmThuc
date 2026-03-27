@@ -1,55 +1,88 @@
-﻿using Microsoft.Maui.Controls.Maps;
+using Mapsui;
+using Mapsui.Extensions;
+using Mapsui.Projections;
+using Mapsui.Tiling;
+using Mapsui.UI.Maui;
 using Microsoft.Maui.Devices.Sensors;
-using Microsoft.Maui.Maps;
-using Microsoft.Maui.Media;
-using Microsoft.Maui.ApplicationModel;
-using System.Linq.Expressions;
-using System.Threading;
+using Mapsui.Layers;
+using Mapsui.Styles;
+using Mapsui.Features;
+
 namespace FoodGuideApp
 {
     public partial class MainPage : ContentPage
     {
-        bool isTracking = false;
-
-        CancellationTokenSource trackingCts = new CancellationTokenSource();
-        string selectedLanguage = "vi";
-        Location sguCS1 = new Location(10.7797, 106.6893);
-        Location fakeLocation = new Location(10.7797, 106.6893);
-        double radius = 0.050;
-        string lastStall = "";
-
-
-        bool hasSpoken = false;
+        private bool isTracking = false;
+        private CancellationTokenSource trackingCts = new CancellationTokenSource();
 
         public MainPage()
         {
             InitializeComponent();
-            startCheckingLocation();
+
+            mapControl.Map = new Mapsui.Map();
+            mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
         }
-        private string GetDescription(FoodStall stall)
+
+        private async void OnStartTrackingClicked(object sender, EventArgs e)
         {
-            switch (selectedLanguage)
+            if (isTracking) return;
+
+            var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            if (status != PermissionStatus.Granted)
             {
-                case "en":
-                    return stall.DescriptionEn;
+                await DisplayAlert("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
+                return;
+            }
 
-                case "ja":
-                    return stall.DescriptionJa;
+            isTracking = true;
+            trackingCts = new CancellationTokenSource();
 
-                case "zh":
-                    return stall.DescriptionZh;
+            await StartTracking();
+        }
 
-                default:
-                    return stall.DescriptionVi;
+        private void OnStopTrackingClicked(object sender, EventArgs e)
+        {
+            if (!isTracking) return;
+
+            isTracking = false;
+            trackingCts.Cancel();
+        }
+
+        private async Task StartTracking()
+        {
+            while (!trackingCts.Token.IsCancellationRequested)
+            {
+                var location = await GetLocation();
+
+                if (location != null)
+                {
+                    locationLabel.Text =
+                        $"Lat: {location.Latitude:F6}\nLng: {location.Longitude:F6}";
+
+                    MoveMapToLocation(location.Latitude, location.Longitude);
+                    ShowUserLocation(location.Latitude, location.Longitude);
+                }
+
+                try
+                {
+                    await Task.Delay(5000, trackingCts.Token);
+                }
+                catch
+                {
+                    break;
+                }
             }
         }
-        private async Task<Location?> getLocation()
+
+        private async Task<Location?> GetLocation()
         {
             try
             {
-                var request = new GeolocationRequest(GeolocationAccuracy.High, TimeSpan.FromSeconds(10));
-                var location = await Geolocation.GetLocationAsync(request);
-                return location;
+                var request = new GeolocationRequest(
+                    GeolocationAccuracy.High,
+                    TimeSpan.FromSeconds(10));
+
+                return await Geolocation.GetLocationAsync(request);
             }
             catch (Exception ex)
             {
@@ -58,232 +91,38 @@ namespace FoodGuideApp
             }
         }
 
-        private async Task startTracking()
+        private void MoveMapToLocation(double latitude, double longitude)
         {
-            if (isTracking) return;
+            if (mapControl.Map == null) return;
 
-            isTracking = true;
-            trackingCts = new CancellationTokenSource();
-
-            try
-            {
-                while (!trackingCts.Token.IsCancellationRequested)
-                {
-                    var location = await getLocation(GeolocationAccuracy.Medium);
-
-                    if (location != null)
-                    {
-                        locationLabel.Text =
-                            $"Lat: {location.Latitude:F6}\nLng: {location.Longitude:F6}";
-
-                        var pos = new Location(location.Latitude, location.Longitude);
-
-                        map.MoveToRegion(
-                            MapSpan.FromCenterAndRadius(pos, Distance.FromMeters(200))
-                        );
-                    }
-
-                    await Task.Delay(5000, trackingCts.Token);
-                }
-            }
-            catch (TaskCanceledException)
-            {
-            }
-            finally
-            {
-                isTracking = false;
-            }
+            var point = SphericalMercator.FromLonLat(longitude, latitude);
+            mapControl.Map.Navigator.CenterOnAndZoomTo(point.ToMPoint(), 10);
         }
 
-        private void stopTracking()
+        private void ShowUserLocation(double latitude, double longitude)
         {
-            if (!isTracking) return;
+            if (mapControl.Map == null) return;
 
-            trackingCts?.Cancel();
-        }
+            var point = SphericalMercator.FromLonLat(longitude, latitude);
 
-        private async void OnStartTrackingClicked(object sender, EventArgs e)
-        {
-            await startTracking();
-        }
+            var feature = new PointFeature(point.ToMPoint());
 
-        private void OnStopTrackingClicked(object sender, EventArgs e)
-        {
-            stopTracking();
-        }
-        private void startCheckingLocation()
-        {
-            Device.StartTimer(TimeSpan.FromSeconds(8), () =>
+            feature.Styles.Add(new SymbolStyle
             {
-                MainThread.BeginInvokeOnMainThread(async () =>
-                {
-                    await checkDistance();
-                });
-
-                return true;
+                SymbolScale = 1
             });
-        }
 
-        private async Task<Location?> getLocation(GeolocationAccuracy accuracy)
-        {
-            // ===== TEST MODE (giả lập bằng nút) =====
-             return fakeLocation;
-
-            // ===== REAL MODE (GPS thật) =====
-            //try
-            //{
-            //    var request = new GeolocationRequest(accuracy, TimeSpan.FromSeconds(10));
-            //    var location = await Geolocation.GetLocationAsync(request);
-            //    return location;
-            //}
-            //catch (Exception)
-            //{
-            //    return null;
-            //}
-        }
-
-        private async Task checkDistance()
-        {
-            GeolocationAccuracy mucDo = GeolocationAccuracy.Medium;
-
-            var currentLocation = await getLocation(mucDo);
-
-            if (currentLocation == null)
-                return;
-
-            double distance = Location.CalculateDistance(
-                currentLocation,
-                sguCS1,
-                DistanceUnits.Kilometers);
-
-            if (distance <= radius && !hasSpoken)
+            var layer = new MemoryLayer
             {
-                hasSpoken = true;
-                await phatThuyetMinh();
-            }
+                Name = "user",
+                Features = new[] { feature }
+            };
 
-            if (distance > radius)
-            {
-                hasSpoken = false;
-            }
-        }
+            var oldLayer = mapControl.Map.Layers.FirstOrDefault(l => l.Name == "user");
+            if (oldLayer != null)
+                mapControl.Map.Layers.Remove(oldLayer);
 
-        private async Task phatThuyetMinh()
-        {
-            string noiDung = selectedLanguage == "vi"
-                ? "Bạn đã đến quầy Bún Bò. Đây là món ăn nổi tiếng với nước dùng đậm đà và hương vị đặc trưng."
-                : "You have arrived at the Bun Bo stall. This is a famous dish with rich broth and a unique flavor.";
-
-            await DisplayAlert("Thông báo", noiDung, "OK");
-            await TextToSpeech.SpeakAsync(noiDung);
-        }
-        public class FoodStall
-        {
-            public string Name { get; set; }
-            public Location Position { get; set; }
-            public string DescriptionVi { get; set; }
-            public string DescriptionEn { get; set; }
-            public string DescriptionJa { get; set; }
-            public string DescriptionZh { get; set; }
-            public FoodStall(string name, Location position, string vi, string en, string ja, string zh)
-            {
-                Name = name;
-                Position = position;
-                DescriptionVi = vi;
-                DescriptionEn = en;
-                DescriptionJa = ja;
-                DescriptionZh = zh;
-                    
-            }
-        }
-        List<FoodStall> foodStalls = new List<FoodStall>()
-{
-    new FoodStall(
-        "Quầy Bún Bò",
-        new Location(10.7797, 106.6893),
-        "Bạn đã đến quầy Bún Bò. Đây là món ăn nổi tiếng Việt Nam.",
-        "You have arrived at the Bun Bo stall. This is a famous Vietnamese dish.",
-        "ブンボーの屋台に到着しました。これはベトナムの有名な料理です。",
-        "你已经到达牛肉粉摊。这是越南著名的美食。"
-    ),
-
-    new FoodStall(
-        "Quầy Phở",
-        new Location(10.7800, 106.6895),
-        "Bạn đã đến quầy Phở. Món ăn truyền thống Việt Nam.",
-        "You have arrived at the Pho stall. A traditional Vietnamese dish.",
-        "フォーの屋台に到着しました。これは伝統的なベトナム料理です。",
-        "你已经到达河粉摊。这是越南的传统美食。"
-    ),
-        new FoodStall(
-        "Quầy Bánh Mì",
-        new Location(10.7795, 106.6890),
-        "Bạn đã đến quầy Bánh Mì. Đây là món ăn nhanh rất phổ biến tại Việt Nam.",
-        "You have arrived at the Banh Mi stall. This is a very popular fast food in Vietnam.",
-        "ここはバインミーの屋台です。バインミーはベトナムで非常に人気のあるファストフードです。",
-        "您已来到越南法棍面包摊。这是越南非常受欢迎的快餐食品。"
-
-    )
-}; 
-        private void moveFakeLocation(double latChange, double lngChange)
-        {
-            fakeLocation = new Location(
-                fakeLocation.Latitude + latChange,
-                fakeLocation.Longitude + lngChange
-            );
-
-            locationLabel.Text =
-                $"Lat: {fakeLocation.Latitude:F6}\nLng: {fakeLocation.Longitude:F6}";
-
-            map.MoveToRegion(
-                MapSpan.FromCenterAndRadius(fakeLocation, Distance.FromMeters(200))
-            );
-            checkNearbyStall(fakeLocation);
-
-        }
-       
-
-        private async void checkNearbyStall(Location currentLocation)
-        {
-            foreach (var stall in foodStalls)
-            {
-                double distance = Location.CalculateDistance(
-                    currentLocation,
-                    stall.Position,
-                    DistanceUnits.Kilometers);
-
-                if (distance <= radius)
-                {
-                    stallLabel.Text = $"Đang gần: {stall.Name} ({distance:F3} km)";
-
-                    if (lastStall != stall.Name)
-                    {
-                        lastStall = stall.Name;
-                        await TextToSpeech.SpeakAsync(GetDescription(stall));
-                    }
-                    return;
-                }
-            }
-
-            stallLabel.Text = "Chưa ở gần quầy nào";
-            lastStall = "";
-        }
-
-        private void MoveUpClicked(object sender, EventArgs e)
-        {
-            moveFakeLocation(0.0001, 0);
-        }
-        private void MoveDownClicked(object sender, EventArgs e)
-        {
-            moveFakeLocation(-0.0001, 0);
-        }
-        private void MoveLeftClicked(object sender, EventArgs e)
-        {
-            moveFakeLocation(0, 0.0001);
-        }
-        private void MoveRightClicked(object sender, EventArgs e)
-        {
-            moveFakeLocation(0, -0.0001);
+            mapControl.Map.Layers.Add(layer);
         }
     }
 }
