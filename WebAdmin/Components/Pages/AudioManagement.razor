@@ -1,0 +1,160 @@
+@page "/audio"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+
+<h3>Quản lý Audio Thuyết Minh</h3>
+
+<div class="mb-3">
+    <label>Chọn POI</label>
+    <select class="form-select" @onchange="OnPoiChanged">
+        <option value="0">-- Chọn điểm tham quan --</option>
+        @if (pois != null)
+        {
+            @foreach (var poi in pois)
+            {
+                <option value="@poi.Id">@poi.Name</option>
+            }
+        }
+    </select>
+</div>
+
+@if (selectedPoiId > 0 && translations != null)
+{
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Ngôn ngữ</th>
+                <th>Nội dung</th>
+                <th>Trạng thái</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var t in translations)
+            {
+                <tr>
+                    <td>@t.Language.ToUpper()</td>
+                    <td>@t.Text</td>
+                    <td>
+                        @if (generatedUrls.ContainsKey(t.Language))
+                        {
+                            <span class="badge bg-success">✓ Đã tạo</span>
+                            <audio controls src="http://localhost:5000@generatedUrls[t.Language]"
+                                   class="ms-2" style="height:30px"></audio>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Chưa tạo</span>
+                        }
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-primary"
+                                @onclick="() => GenerateAudio(t)"
+                                disabled="@isGenerating">
+                            @if (generatingLang == t.Language)
+                            {
+                                <span>⏳ Đang tạo...</span>
+                            }
+                            else
+                            {
+                                <span>🔊 Tạo Audio</span>
+                            }
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (message != null)
+{
+    <div class="alert alert-info mt-3">@message</div>
+}
+
+@code {
+    private List<PoiDto>? pois;
+    private List<TranslationDto>? translations;
+    private Dictionary<string, string> generatedUrls = new();
+    private int selectedPoiId = 0;
+    private string? message;
+    private bool isGenerating = false;
+    private string? generatingLang;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+    }
+
+    private async Task OnPoiChanged(ChangeEventArgs e)
+    {
+        selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
+        generatedUrls.Clear();
+        message = null;
+
+        var http = HttpFactory.CreateClient("WebAPI");
+        translations = await http.GetFromJsonAsync<List<TranslationDto>>(
+            $"/api/Translation/{selectedPoiId}");
+    }
+
+    private async Task GenerateAudio(TranslationDto t)
+    {
+        isGenerating = true;
+        generatingLang = t.Language;
+        message = null;
+
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var response = await http.PostAsJsonAsync("/api/Tts/generate", new
+            {
+                poiId = selectedPoiId.ToString(),
+                text = t.Text,
+                language = t.Language
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<TtsResult>();
+                if (result?.AudioUrl != null)
+                {
+                    generatedUrls[t.Language] = result.AudioUrl;
+                    message = $"Tạo audio {t.Language.ToUpper()} thành công!";
+                }
+            }
+            else
+            {
+                message = "Lỗi: Cần Azure Key để tạo audio thật. Xem appsettings.json";
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Lỗi: {ex.Message}";
+        }
+        finally
+        {
+            isGenerating = false;
+            generatingLang = null;
+        }
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class TranslationDto
+    {
+        public int Id { get; set; }
+        public int PoiId { get; set; }
+        public string Language { get; set; } = "";
+        public string Text { get; set; } = "";
+    }
+
+    public class TtsResult
+    {
+        public string? AudioUrl { get; set; }
+    }
+}

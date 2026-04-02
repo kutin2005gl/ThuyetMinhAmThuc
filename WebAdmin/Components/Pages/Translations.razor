@@ -1,0 +1,156 @@
+@page "/translations"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+
+<h3>Quản lý nội dung thuyết minh</h3>
+
+<div class="mb-3">
+    <label>Chọn POI</label>
+    <select class="form-select" @onchange="OnPoiChanged">
+        <option value="0">-- Chọn điểm tham quan --</option>
+        @if (pois != null)
+        {
+            @foreach (var poi in pois)
+            {
+                <option value="@poi.Id">@poi.Name</option>
+            }
+        }
+    </select>
+</div>
+
+@if (selectedPoiId > 0)
+{
+    <div class="card p-3 mb-3">
+        <h5>Thêm / Cập nhật nội dung</h5>
+        <div class="mb-2">
+            <label>Ngôn ngữ</label>
+            <select class="form-select" @bind="form.Language">
+                <option value="vi">Tiếng Việt</option>
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+            </select>
+        </div>
+        <div class="mb-2">
+            <label>Nội dung thuyết minh</label>
+            <textarea class="form-control" rows="4" @bind="form.Text"></textarea>
+        </div>
+        <button class="btn btn-success" @onclick="SaveTranslation">Lưu</button>
+    </div>
+
+    @if (message != null)
+    {
+        <div class="alert alert-info">@message</div>
+    }
+
+    @if (translations != null && translations.Any())
+    {
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Ngôn ngữ</th>
+                    <th>Nội dung</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in translations)
+                {
+                    <tr>
+                        <td>@t.Language.ToUpper()</td>
+                        <td>@t.Text</td>
+                        <td>
+                            <button class="btn btn-sm btn-warning me-1"
+                                @onclick="() => EditTranslation(t)">Sửa</button>
+                            <button class="btn btn-sm btn-danger"
+                                @onclick="() => DeleteTranslation(t.Id)">Xóa</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else if (translations != null)
+    {
+        <p>Chưa có nội dung thuyết minh cho POI này.</p>
+    }
+}
+
+@code {
+    private List<PoiDto>? pois;
+    private List<TranslationDto>? translations;
+    private TranslationForm form = new();
+    private int selectedPoiId = 0;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+    }
+
+    private async Task OnPoiChanged(ChangeEventArgs e)
+    {
+        selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
+        form = new TranslationForm { Language = "vi" };
+        message = null;
+        await LoadTranslations();
+    }
+
+    private async Task LoadTranslations()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        translations = await http.GetFromJsonAsync<List<TranslationDto>>(
+            $"/api/Translation/{selectedPoiId}");
+    }
+
+    private async Task SaveTranslation()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.PostAsJsonAsync("/api/Translation", new
+        {
+            PoiId = selectedPoiId,
+            form.Language,
+            form.Text
+        });
+        message = "Lưu thành công!";
+        form = new TranslationForm { Language = "vi" };
+        await LoadTranslations();
+    }
+
+    private void EditTranslation(TranslationDto t)
+    {
+        form = new TranslationForm
+        {
+            Language = t.Language,
+            Text = t.Text
+        };
+    }
+
+    private async Task DeleteTranslation(int id)
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.DeleteAsync($"/api/Translation/{id}");
+        message = "Xóa thành công!";
+        await LoadTranslations();
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class TranslationDto
+    {
+        public int Id { get; set; }
+        public int PoiId { get; set; }
+        public string Language { get; set; } = "";
+        public string Text { get; set; } = "";
+    }
+
+    public class TranslationForm
+    {
+        public string Language { get; set; } = "vi";
+        public string Text { get; set; } = "";
+    }
+}
