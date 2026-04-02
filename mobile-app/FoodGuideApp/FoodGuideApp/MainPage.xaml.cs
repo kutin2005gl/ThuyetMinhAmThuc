@@ -7,13 +7,16 @@ using Microsoft.Maui.Devices.Sensors;
 using Mapsui.Layers;
 using Mapsui.Styles;
 using Mapsui.Features;
-
+using System.Text.Json;
+using System.Net.Http;
+using System.Linq;
 namespace FoodGuideApp
 {
     public partial class MainPage : ContentPage
     {
         private bool isTracking = false;
         private CancellationTokenSource trackingCts = new CancellationTokenSource();
+        private List<PoiItem> pois = new();
 
         public MainPage()
         {
@@ -21,6 +24,10 @@ namespace FoodGuideApp
 
             mapControl.Map = new Mapsui.Map();
             mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
+            mapControl.Map = new Mapsui.Map();
+            mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
+
+            _ = LoadPoisFromApi();
         }
 
         private async void OnStartTrackingClicked(object sender, EventArgs e)
@@ -123,6 +130,38 @@ namespace FoodGuideApp
                 mapControl.Map.Layers.Remove(oldLayer);
 
             mapControl.Map.Layers.Add(layer);
+
+        }
+        private async Task LoadPoisFromApi()
+        {
+            try
+            {
+                var handler = new HttpClientHandler();
+                handler.ServerCertificateCustomValidationCallback =
+                    (message, cert, chain, errors) => true;
+
+                using var client = new HttpClient(handler);
+
+                string apiUrl = "https://10.0.2.2:5001/api/poi";
+
+                var json = await client.GetStringAsync(apiUrl);
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                var data = JsonSerializer.Deserialize<List<PoiItem>>(json, options);
+
+                if (data != null)
+                    pois = data;
+
+                await DisplayAlert("API", $"Đã tải {pois.Count} quầy", "OK");
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Lỗi API", ex.Message, "OK");
+            }
         }
     }
 }
