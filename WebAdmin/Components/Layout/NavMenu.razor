@@ -1,0 +1,85 @@
+﻿@inject WebAdmin.Services.UserSession Session
+@inject NavigationManager Nav
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">🍜 Thuyết Minh Ẩm Thực</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+
+        @if (Session.IsLoggedIn)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="pois">
+                    <span class="bi bi-map" aria-hidden="true"></span> Quản lý POI
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="translations">
+                    <span class="bi bi-chat-text" aria-hidden="true"></span> Nội dung thuyết minh
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="audio">
+                    <span class="bi bi-music-note" aria-hidden="true"></span> Quản lý Audio
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="languages">
+                    <span class="bi bi-globe" aria-hidden="true"></span> Ngôn ngữ
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="tours">
+                    <span class="bi bi-map" aria-hidden="true"></span> Quản lý Tour
+                </NavLink>
+            </div>
+
+            @if (Session.IsAdmin)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="users">
+                        <span class="bi bi-people" aria-hidden="true"></span> Quản lý User
+                    </NavLink>
+                </div>
+            }
+
+            <div class="nav-item px-3 mt-3">
+                <span class="nav-link text-warning" style="cursor:pointer" @onclick="Logout">
+                    <span class="bi bi-box-arrow-left" aria-hidden="true"></span>
+                    Đăng xuất (@Session.FullName)
+                </span>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="login">
+                    <span class="bi bi-person" aria-hidden="true"></span> Đăng nhập
+                </NavLink>
+            </div>
+        }
+
+    </nav>
+</div>
+
+@code {
+    private void Logout()
+    {
+        Session.Username = null;
+        Session.FullName = null;
+        Session.Role = null;
+        Session.PoiId = null;
+        Nav.NavigateTo("/login", forceLoad: true);
+    }
+}
+

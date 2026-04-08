@@ -1,0 +1,183 @@
+@page "/tours"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+
+<h3>Quản lý Tour</h3>
+
+@if (Session.IsAdmin)
+{
+    <div class="card p-3 mb-3">
+        <h5>Tạo Tour mới</h5>
+        <div class="mb-2">
+            <label>Tên tour</label>
+            <input class="form-control" @bind="form.Name" placeholder="VD: Tour ẩm thực Quận 4"/>
+        </div>
+        <div class="mb-2">
+            <label>Mô tả</label>
+            <textarea class="form-control" rows="2" @bind="form.Description"></textarea>
+        </div>
+        <div class="mb-2">
+            <label>Chọn POI (theo thứ tự tham quan)</label>
+            @if (allPois != null)
+            {
+                @foreach (var poi in allPois)
+                {
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               id="poi_@poi.Id"
+                               @onchange="e => TogglePoi(poi.Id, e)"/>
+                        <label class="form-check-label" for="poi_@poi.Id">
+                            @poi.Name
+                        </label>
+                    </div>
+                }
+            }
+        </div>
+        @if (selectedPoiIds.Any())
+        {
+            <div class="alert alert-info py-2">
+                <small>Thứ tự đã chọn: @string.Join(" → ", selectedPoiIds.Select(id => allPois?.FirstOrDefault(p => p.Id == id)?.Name))</small>
+            </div>
+        }
+        <button class="btn btn-success" @onclick="CreateTour">Tạo Tour</button>
+    </div>
+}
+
+@if (message != null)
+{
+    <div class="alert alert-info">@message</div>
+}
+
+@if (tours == null)
+{
+    <p>Đang tải...</p>
+}
+else if (!tours.Any())
+{
+    <p>Chưa có tour nào.</p>
+}
+else
+{
+    @foreach (var tour in tours)
+    {
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>@tour.Name</strong>
+                @if (Session.IsAdmin)
+                {
+                    <button class="btn btn-sm btn-danger"
+                            @onclick="() => DeleteTour(tour.Id)">Xóa</button>
+                }
+            </div>
+            <div class="card-body">
+                <p class="text-muted">@tour.Description</p>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var tp in tour.Pois.OrderBy(p => p.Order))
+                    {
+                        <span class="badge bg-primary">@tp.Order. @tp.Name</span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private List<TourDto>? tours;
+    private List<PoiDto>? allPois;
+    private List<int> selectedPoiIds = new();
+    private TourForm form = new();
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        var http = HttpFactory.CreateClient("WebAPI");
+        allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+        await LoadTours();
+    }
+
+    private async Task LoadTours()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        tours = await http.GetFromJsonAsync<List<TourDto>>("/api/Tour");
+    }
+
+    private void TogglePoi(int poiId, ChangeEventArgs e)
+    {
+        var checked_ = (bool)(e.Value ?? false);
+        if (checked_)
+            selectedPoiIds.Add(poiId);
+        else
+            selectedPoiIds.Remove(poiId);
+    }
+
+    private async Task CreateTour()
+    {
+        if (string.IsNullOrWhiteSpace(form.Name))
+        {
+            message = "⚠️ Vui lòng nhập tên tour!";
+            return;
+        }
+        if (!selectedPoiIds.Any())
+        {
+            message = "⚠️ Vui lòng chọn ít nhất 1 POI!";
+            return;
+        }
+
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.PostAsJsonAsync("/api/Tour", new
+        {
+            form.Name,
+            form.Description,
+            PoiIds = selectedPoiIds
+        });
+
+        message = "✅ Tạo tour thành công!";
+        form = new TourForm();
+        selectedPoiIds.Clear();
+        await LoadTours();
+    }
+
+    private async Task DeleteTour(int id)
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.DeleteAsync($"/api/Tour/{id}");
+        message = "✅ Đã xóa tour!";
+        await LoadTours();
+    }
+
+    public class TourDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public List<TourPoiDto> Pois { get; set; } = new();
+    }
+
+    public class TourPoiDto
+    {
+        public int Order { get; set; }
+        public int PoiId { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class TourForm
+    {
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+    }
+} 

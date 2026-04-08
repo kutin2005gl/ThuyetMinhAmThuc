@@ -1,0 +1,110 @@
+@page "/languages"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+
+<h3>Quản lý Ngôn ngữ</h3>
+
+<div class="card p-3 mb-3">
+    <h5>Ngôn ngữ hỗ trợ</h5>
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Mã</th>
+                <th>Tên ngôn ngữ</th>
+                <th>Giọng TTS</th>
+                <th>Trạng thái</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var lang in languages)
+            {
+                <tr>
+                    <td><span class="badge bg-primary">@lang.Code</span></td>
+                    <td>@lang.Name</td>
+                    <td><code>@lang.Voice</code></td>
+                    <td><span class="badge bg-success">✓ Hỗ trợ</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="card p-3">
+    <h5>Thống kê nội dung theo ngôn ngữ</h5>
+    @if (stats == null)
+    {
+        <p>Đang tải...</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Ngôn ngữ</th>
+                    <th>Số POI có nội dung</th>
+                    <th>Tổng POI</th>
+                    <th>Tiến độ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var stat in stats)
+                {
+                    var percent = totalPois > 0 ? (stat.Count * 100 / totalPois) : 0;
+                    <tr>
+                        <td><span class="badge bg-primary">@stat.Language.ToUpper()</span></td>
+                        <td>@stat.Count</td>
+                        <td>@totalPois</td>
+                        <td>
+                            <div class="progress" style="height:20px">
+                                <div class="progress-bar bg-success"
+                                     style="width:@percent%">
+                                    @percent%
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private int totalPois = 0;
+    private List<LangStat>? stats;
+
+    private List<LangInfo> languages = new()
+    {
+        new("vi", "Tiếng Việt", "vi-VN-HoaiMyNeural"),
+        new("en", "English", "en-US-JennyNeural"),
+        new("zh", "中文", "zh-CN-XiaoxiaoNeural"),
+        new("ja", "日本語", "ja-JP-NanamiNeural"),
+        new("ko", "한국어", "ko-KR-SunHiNeural")
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        var http = HttpFactory.CreateClient("WebAPI");
+        var pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+        totalPois = pois?.Count ?? 0;
+        var result = await http.GetFromJsonAsync<StatsResponse>("/api/Translation/stats");
+        stats = result?.ByLanguage ?? new();
+    }
+
+    public record LangInfo(string Code, string Name, string Voice);
+    public class LangStat { public string Language { get; set; } = ""; public int Count { get; set; } }
+    public class PoiDto { public int Id { get; set; } }
+    public class StatsResponse
+    {
+        public int Total { get; set; }
+        public List<LangStat> ByLanguage { get; set; } = new();
+    }
+}

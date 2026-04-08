@@ -1,0 +1,177 @@
+@page "/users"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+
+<h3>Quản lý tài khoản</h3>
+
+@if (!Session.IsAdmin)
+{
+    <div class="alert alert-danger">Bạn không có quyền truy cập.</div>
+}
+else
+{
+    <div class="card p-3 mb-3">
+        <h5>Tạo tài khoản mới</h5>
+        <div class="row g-2">
+            <div class="col-md-3">
+                <input class="form-control" @bind="form.Username" placeholder="Tài khoản"/>
+            </div>
+            <div class="col-md-3">
+                <input class="form-control" type="password" @bind="form.Password" placeholder="Mật khẩu"/>
+            </div>
+            <div class="col-md-3">
+                <input class="form-control" @bind="form.FullName" placeholder="Họ tên"/>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" @bind="form.Role">
+                    <option value="Admin">Admin</option>
+                    <option value="Staff">Staff</option>
+                </select>
+            </div>
+        </div>
+        @if (form.Role == "Staff")
+        {
+            <div class="mt-2">
+                <label>Quầy phụ trách</label>
+                <select class="form-select" @bind="form.PoiId">
+                    <option value="0">-- Chọn quầy --</option>
+                    @if (pois != null)
+                    {
+                        @foreach (var poi in pois)
+                        {
+                            <option value="@poi.Id">@poi.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+        }
+        <button class="btn btn-success mt-2" @onclick="CreateUser">Tạo tài khoản</button>
+    </div>
+
+    @if (message != null)
+    {
+        <div class="alert alert-info">@message</div>
+    }
+
+    @if (users != null)
+    {
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Tài khoản</th>
+                    <th>Họ tên</th>
+                    <th>Vai trò</th>
+                    <th>Quầy</th>
+                    <th>Trạng thái</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td>@user.Username</td>
+                        <td>@user.FullName</td>
+                        <td>
+                            <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary")">
+                                @user.Role
+                            </span>
+                        </td>
+                        <td>@(pois?.FirstOrDefault(p => p.Id == user.PoiId)?.Name ?? "-")</td>
+                        <td>
+                            <span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">
+                                @(user.IsActive ? "Hoạt động" : "Đã khóa")
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm @(user.IsActive ? "btn-warning" : "btn-success")"
+                                    @onclick="() => ToggleUser(user.Id)">
+                                @(user.IsActive ? "🔒 Khóa" : "🔓 Mở khóa")
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+}
+
+@code {
+    private List<UserDto>? users;
+    private List<PoiDto>? pois;
+    private string? message;
+    private RegisterForm form = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsLoggedIn || !Session.IsAdmin)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        var http = HttpFactory.CreateClient("WebAPI");
+        pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        users = await http.GetFromJsonAsync<List<UserDto>>("/api/Auth/users");
+    }
+
+    private async Task CreateUser()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        var response = await http.PostAsJsonAsync("/api/Auth/register", new
+        {
+            form.Username,
+            form.Password,
+            form.FullName,
+            form.Role,
+            PoiId = form.PoiId == 0 ? (int?)null : form.PoiId
+        });
+
+        message = response.IsSuccessStatusCode
+            ? "✅ Tạo tài khoản thành công!"
+            : "❌ Tài khoản đã tồn tại!";
+
+        form = new RegisterForm();
+        await LoadUsers();
+    }
+
+    private async Task ToggleUser(int id)
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.PutAsJsonAsync($"/api/Auth/users/{id}/toggle", new { });
+        await LoadUsers();
+    }
+
+    public class UserDto
+    {
+        public int Id { get; set; }
+        public string Username { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Role { get; set; } = "";
+        public int? PoiId { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class RegisterForm
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Role { get; set; } = "Staff";
+        public int PoiId { get; set; } = 0;
+    }
+}

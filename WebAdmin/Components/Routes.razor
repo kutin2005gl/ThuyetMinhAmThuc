@@ -1,0 +1,12 @@
+﻿@using WebAdmin.Services
+
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthGuard RouteData="routeData"/>
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <p>Trang không tồn tại.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

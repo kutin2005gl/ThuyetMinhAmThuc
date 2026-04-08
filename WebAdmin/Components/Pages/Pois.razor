@@ -1,0 +1,239 @@
+@page "/pois"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+
+<h3>Quản lý điểm tham quan (POI)</h3>
+
+@if (Session.IsAdmin)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">+ Thêm POI</button>
+}
+
+@if (showForm)
+{
+    <div class="card p-3 mb-3">
+        <h5>@(editingId == 0 ? "Thêm mới" : "Chỉnh sửa") POI</h5>
+        <div class="mb-2">
+            <label>Tên</label>
+            <input class="form-control" @bind="form.Name"/>
+        </div>
+        <div class="mb-2">
+            <label>Mô tả</label>
+            <input class="form-control" @bind="form.Description"/>
+        </div>
+        <div class="mb-2">
+            <label>Vĩ độ</label>
+            <input class="form-control" type="number" step="0.0001" @bind="form.Latitude"/>
+        </div>
+        <div class="mb-2">
+            <label>Kinh độ</label>
+            <input class="form-control" type="number" step="0.0001" @bind="form.Longitude"/>
+        </div>
+        <div class="mb-2">
+            <label>Bán kính (m)</label>
+            <input class="form-control" type="number" @bind="form.RadiusMeters"/>
+        </div>
+        <button class="btn btn-success me-2" @onclick="SavePoi">Lưu</button>
+        <button class="btn btn-secondary" @onclick="HideForm">Hủy</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <div class="alert alert-info">@message</div>
+}
+
+@if (pois == null)
+{
+    <p>Đang tải...</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Tên</th>
+                <th>Mô tả</th>
+                <th>Vĩ độ</th>
+                <th>Kinh độ</th>
+                <th>Bán kính (m)</th>
+                <th>Ảnh</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var poi in pois)
+            {
+                <tr>
+                    <td>@poi.Id</td>
+                    <td>@poi.Name</td>
+                    <td>@poi.Description</td>
+                    <td>@poi.Latitude</td>
+                    <td>@poi.Longitude</td>
+                    <td>@poi.RadiusMeters</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(poi.ImageUrl))
+                        {
+                            <img src="@poi.ImageUrl"
+                                 style="width:60px;height:60px;object-fit:cover;border-radius:4px"/>
+                        }
+                        else
+                        {
+                            <span class="text-muted">Chưa có ảnh</span>
+                        }
+
+                        <br/>
+                        @if (Session.IsAdmin || Session.PoiId == poi.Id)
+                        {
+                            <InputFile OnChange="e => UploadImage(e, poi.Id)"
+                                       accept="image/*"
+                                       class="form-control form-control-sm mt-1"
+                                       style="width:120px"/>
+                        }
+
+                        <!-- Debug ImageUrl -->
+                        <div style="font-size:10px;color:red">@poi.ImageUrl</div>
+                    </td>
+
+                    <td>
+                        @if (Session.IsAdmin || Session.PoiId == poi.Id)
+                        {
+                            <button class="btn btn-sm btn-warning me-1"
+                                    @onclick="() => EditPoi(poi)">Sửa</button>
+                        }
+                        @if (Session.IsAdmin)
+                        {
+                            <button class="btn btn-sm btn-danger"
+                                    @onclick="() => DeletePoi(poi.Id)">Xóa</button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<PoiDto>? pois;
+    private PoiDto form = new();
+    private bool showForm = false;
+    private int editingId = 0;
+    private string message = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+        
+        await LoadPois();
+    }
+
+    private async Task LoadPois()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+        
+        pois = Session.IsAdmin
+            ? allPois
+            : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+    }
+
+    private void ShowAddForm()
+    {
+        form = new PoiDto { RadiusMeters = 30 };
+        editingId = 0;
+        showForm = true;
+        message = "";
+    }
+
+    private void EditPoi(PoiDto poi)
+    {
+        form = new PoiDto
+        {
+            Id = poi.Id,
+            Name = poi.Name,
+            Description = poi.Description,
+            Latitude = poi.Latitude,
+            Longitude = poi.Longitude,
+            RadiusMeters = poi.RadiusMeters,
+            ImageUrl = poi.ImageUrl
+        };
+        editingId = poi.Id;
+        showForm = true;
+        message = "";
+    }
+
+    private void HideForm()
+    {
+        showForm = false;
+        form = new PoiDto();
+        editingId = 0;
+    }
+
+    private async Task SavePoi()
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        if (editingId == 0)
+        {
+            await http.PostAsJsonAsync("/api/Poi", form);
+            message = "✅ Thêm POI thành công!";
+        }
+        else
+        {
+            await http.PutAsJsonAsync($"/api/Poi/{editingId}", form);
+            message = "✅ Cập nhật POI thành công!";
+        }
+        HideForm();
+        await LoadPois();
+    }
+
+    private async Task DeletePoi(int id)
+    {
+        var http = HttpFactory.CreateClient("WebAPI");
+        await http.DeleteAsync($"/api/Poi/{id}");
+        message = "✅ Đã xóa POI!";
+        await LoadPois();
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e, int poiId)
+    {
+        var file = e.File;
+        if (file == null) return;
+        
+        var content = new MultipartFormDataContent();
+        var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+        content.Add(new StreamContent(stream), "file", file.Name);
+        
+        var http = HttpFactory.CreateClient("WebAPI");
+        var response = await http.PostAsync($"/api/Poi/{poiId}/upload-image", content);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            message = "✅ Upload ảnh thành công!";
+            await LoadPois(); // Load lại để ImageUrl mới được cập nhật
+        }
+        else
+        {
+            message = "❌ Upload ảnh thất bại!";
+        }    
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Description { get; set; } = "";
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double RadiusMeters { get; set; } = 30;
+
+        public string? ImagePath { get; set; }
+        public string? ImageUrl { get; set; } // <-- dùng ImageUrl từ API
+    }
+}

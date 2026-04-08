@@ -1,0 +1,9 @@
+@inject NavigationManager Nav
+@inject UserSession Session
+@code {
+    protected override void OnInitialized()
+    {
+        if (!Session.IsLoggedIn)
+            Nav.NavigateTo("/login", forceLoad: true);
+    }
+}
