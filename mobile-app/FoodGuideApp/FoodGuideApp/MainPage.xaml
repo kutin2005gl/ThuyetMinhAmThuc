@@ -28,14 +28,18 @@
 
             <mapsui:MapControl x:Name="mapControl"
                                HeightRequest="400" />
+
             <Label x:Name="resultLabel"
-           Text="Chưa tải POI"
-           FontSize="16" /> 
+                   Text="Chưa tải POI"
+                   FontSize="16" />
+
             <Label x:Name="geofenceLabel"
                    Text="Chưa vào vùng geofence"
                    FontSize="18"
-                   TextColor="Red"/>
-            
+                   TextColor="Red" />
+
+           
+
            
 
         </VerticalStackLayout>

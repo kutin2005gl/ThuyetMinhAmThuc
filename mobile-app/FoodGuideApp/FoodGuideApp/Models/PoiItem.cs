@@ -1,4 +1,4 @@
-﻿namespace FoodGuideApp;
+﻿namespace FoodGuideApp.Models;
 
 public class PoiItem
 {
