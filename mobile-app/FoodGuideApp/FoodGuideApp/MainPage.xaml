@@ -37,10 +37,9 @@
                    Text="Chưa vào vùng geofence"
                    FontSize="18"
                    TextColor="Red" />
+          
 
-           
 
-           
 
         </VerticalStackLayout>
     </ScrollView>
