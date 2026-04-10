@@ -1,22 +1,23 @@
+using FoodGuideApp.Models;
+using FoodGuideApp.Services;
 using Mapsui;
 using Mapsui.Extensions;
+using Mapsui.Features;
+using Mapsui.Layers;
+using Mapsui.Nts;
 using Mapsui.Projections;
+using Mapsui.Styles;
 using Mapsui.Tiling;
 using Mapsui.UI.Maui;
 using Microsoft.Maui.Devices.Sensors;
-using Mapsui.Layers;
-using Mapsui.Styles;
-using Mapsui.Features;
-using System.Text.Json;
-using Mapsui.Nts;
 using Microsoft.Maui.Media;
-using SensorLocation = Microsoft.Maui.Devices.Sensors.Location;
-using NtsPoint = NetTopologySuite.Geometries.Point;
-using MapsuiColor = Mapsui.Styles.Color;
-using MapsuiBrush = Mapsui.Styles.Brush;
-using MapsuiPen = Mapsui.Styles.Pen;
-using FoodGuideApp.Models;
 using System.Diagnostics;
+using System.Text.Json;
+using MapsuiBrush = Mapsui.Styles.Brush;
+using MapsuiColor = Mapsui.Styles.Color;
+using MapsuiPen = Mapsui.Styles.Pen;
+using NtsPoint = NetTopologySuite.Geometries.Point;
+using SensorLocation = Microsoft.Maui.Devices.Sensors.Location;
 
 namespace FoodGuideApp
 {
@@ -53,16 +54,22 @@ namespace FoodGuideApp
         private double currentGeofenceRadius = 30.0;
 
         // Tránh chồng nhiều lệnh TTS cùng lúc
-        private bool isSpeaking = false;
+        //private bool isSpeaking = false;
         private HashSet<int> spokenPois = new();
         private DateTime lastMapUpdateTime = DateTime.MinValue;
-
-        public MainPage()
+        private readonly AudioQueueManager audioManager;
+        public MainPage(IAudioFocusService audioFocusService)
         {
             InitializeComponent();
 
+            // Công dụng: khởi tạo bộ quản lý audio
+            // và nhận service xử lý audio focus từ hệ thống.
+            audioManager = new AudioQueueManager(audioFocusService);
+
             mapControl.Map = new Mapsui.Map();
             mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
+
+            audioManager.Start();
 
             LoadAppSettings();
             _ = InitializeData();
@@ -176,7 +183,7 @@ namespace FoodGuideApp
 
             // Reset trạng thái tracking
             isTracking = true;
-            isSpeaking = false;
+            
             lastMapUpdateTime = DateTime.MinValue;
             lastPoiCheckTime = DateTime.MinValue;
 
@@ -189,7 +196,7 @@ namespace FoodGuideApp
         private void OnStopTrackingClicked(object sender, EventArgs e)
         {
             if (!isTracking) return;
-
+            audioManager.StopAll();
             isTracking = false;
             trackingCts.Cancel();
             trackingCts = new CancellationTokenSource();
@@ -350,6 +357,10 @@ namespace FoodGuideApp
         }
 
         // Công dụng: kiểm tra khi người dùng đi vào geofence của POI nào
+        // Công dụng: kiểm tra khi người dùng đi vào geofence của POI nào.
+        // Hàm sẽ chọn POI phù hợp nhất theo ưu tiên và khoảng cách,
+        // cập nhật trạng thái geofence trên giao diện,
+        // rồi đưa nội dung thuyết minh vào hàng chờ audio nếu chưa phát trước đó.
         private async Task CheckEnterPoi(SensorLocation location)
         {
             Poi? bestPoi = null;
@@ -363,7 +374,7 @@ namespace FoodGuideApp
                     continue;
                 }
 
-                // Lọc nhanh các POI quá xa để đỡ tốn tính toán
+                // Công dụng: lọc nhanh các POI quá xa để giảm số lần tính khoảng cách.
                 if (Math.Abs(location.Latitude - poi.Latitude) > 0.01 ||
                     Math.Abs(location.Longitude - poi.Longitude) > 0.01)
                 {
@@ -391,16 +402,21 @@ namespace FoodGuideApp
                 }
             }
 
-            if (bestPoi != null)
+            // Công dụng: cập nhật giao diện geofence trên luồng chính
+            // để tránh lỗi "Only the original thread that created a view hierarchy can touch its views".
+            MainThread.BeginInvokeOnMainThread(() =>
             {
-                geofenceLabel.Text = $"Đã vào vùng geofence: {bestPoi.Name} ({bestDistance:F1}m)";
-                geofenceLabel.TextColor = Colors.Green;
-            }
-            else
-            {
-                geofenceLabel.Text = "Chưa vào vùng geofence";
-                geofenceLabel.TextColor = Colors.Red;
-            }
+                if (bestPoi != null)
+                {
+                    geofenceLabel.Text = $"Đã vào vùng geofence: {bestPoi.Name} ({bestDistance:F1}m)";
+                    geofenceLabel.TextColor = Colors.Green;
+                }
+                else
+                {
+                    geofenceLabel.Text = "Chưa vào vùng geofence";
+                    geofenceLabel.TextColor = Colors.Red;
+                }
+            });
 
             foreach (var poi in geoPois)
             {
@@ -425,23 +441,41 @@ namespace FoodGuideApp
 
                             if (string.IsNullOrWhiteSpace(message))
                             {
-                                resultLabel.Text = $"⚠ Không có nội dung thuyết minh cho: {poi.Name}";
+                                MainThread.BeginInvokeOnMainThread(() =>
+                                {
+                                    resultLabel.Text = $"⚠ Không có nội dung thuyết minh cho: {poi.Name}";
+                                });
+
                                 Debug.WriteLine($"[TTS SKIP] {poi.Name} không có text cho ngôn ngữ {currentLanguage}");
                                 continue;
                             }
 
-                            resultLabel.Text = $"🔊 Đang thuyết minh: {poi.Name} ({bestDistance:F0}m)";
+                            MainThread.BeginInvokeOnMainThread(() =>
+                            {
+                                resultLabel.Text = $"🔊 Đang thuyết minh: {poi.Name} ({bestDistance:F0}m)";
+                            });
 
                             try
                             {
-                                await SpeakText(message, currentLanguage);
+                                await audioManager.EnqueueAsync(new AudioJob
+                                {
+                                    PoiId = poi.Id,
+                                    Language = currentLanguage,
+                                    Text = message,
+                                    Priority = poi.Priority
+                                });
+
                                 spokenPois.Add(poi.Id);
                                 Debug.WriteLine($"[TTS OK] {poi.Name} | lang={currentLanguage}");
                             }
                             catch (Exception ex)
                             {
                                 Debug.WriteLine($"[TTS ERROR] {poi.Name}: {ex.Message}");
-                                resultLabel.Text = $"❌ Lỗi thuyết minh: {poi.Name}";
+
+                                MainThread.BeginInvokeOnMainThread(() =>
+                                {
+                                    resultLabel.Text = $"❌ Lỗi thuyết minh: {poi.Name}";
+                                });
                             }
                         }
                     }
@@ -536,10 +570,7 @@ namespace FoodGuideApp
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    if (!isSpeaking)
-                    {
-                        resultLabel.Text = "Đang theo dõi vị trí...";
-                    }
+                    resultLabel.Text = "Đang theo dõi vị trí...";
                 });
             }
         }
@@ -718,69 +749,69 @@ namespace FoodGuideApp
         }
 
         // Công dụng: đọc nội dung thuyết minh bằng Text To Speech theo đúng ngôn ngữ
-        private async Task SpeakText(string text, string languageCode)
-        {
-            if (string.IsNullOrWhiteSpace(text) || isSpeaking)
-                return;
+        //private async Task SpeakText(string text, string languageCode)
+        //{
+        //    if (string.IsNullOrWhiteSpace(text) || isSpeaking)
+        //        return;
 
-            try
-            {
-                isSpeaking = true;
+        //    try
+        //    {
+        //        isSpeaking = true;
 
-                var locales = await TextToSpeech.Default.GetLocalesAsync();
+        //        var locales = await TextToSpeech.Default.GetLocalesAsync();
 
-                if (locales == null || !locales.Any())
-                {
-                    resultLabel.Text = "Thiết bị chưa có bộ máy TTS";
-                    Debug.WriteLine("[TTS ERROR] Không tìm thấy locale TTS nào");
-                    return;
-                }
+        //        if (locales == null || !locales.Any())
+        //        {
+        //            resultLabel.Text = "Thiết bị chưa có bộ máy TTS";
+        //            Debug.WriteLine("[TTS ERROR] Không tìm thấy locale TTS nào");
+        //            return;
+        //        }
 
-                string lang = (languageCode ?? "vi").Trim().ToLower();
-                Locale? locale = null;
+        //        string lang = (languageCode ?? "vi").Trim().ToLower();
+        //        Locale? locale = null;
 
-                locale = locales.FirstOrDefault(l =>
-                    !string.IsNullOrWhiteSpace(l.Language) &&
-                    l.Language.StartsWith(lang, StringComparison.OrdinalIgnoreCase));
+        //        locale = locales.FirstOrDefault(l =>
+        //            !string.IsNullOrWhiteSpace(l.Language) &&
+        //            l.Language.StartsWith(lang, StringComparison.OrdinalIgnoreCase));
 
-                if (locale == null && lang.Contains("-"))
-                {
-                    string shortLang = lang.Split('-')[0];
-                    locale = locales.FirstOrDefault(l =>
-                        !string.IsNullOrWhiteSpace(l.Language) &&
-                        l.Language.StartsWith(shortLang, StringComparison.OrdinalIgnoreCase));
-                }
+        //        if (locale == null && lang.Contains("-"))
+        //        {
+        //            string shortLang = lang.Split('-')[0];
+        //            locale = locales.FirstOrDefault(l =>
+        //                !string.IsNullOrWhiteSpace(l.Language) &&
+        //                l.Language.StartsWith(shortLang, StringComparison.OrdinalIgnoreCase));
+        //        }
 
-                if (locale == null)
-                {
-                    locale = locales.FirstOrDefault(l =>
-                        !string.IsNullOrWhiteSpace(l.Language) &&
-                        l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase));
-                }
+        //        if (locale == null)
+        //        {
+        //            locale = locales.FirstOrDefault(l =>
+        //                !string.IsNullOrWhiteSpace(l.Language) &&
+        //                l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase));
+        //        }
 
-                var options = new SpeechOptions
-                {
-                    Locale = locale,
-                    Pitch = 1.0f,
-                    Volume = 1.0f
-                };
+        //        var options = new SpeechOptions
+        //        {
+        //            Locale = locale,
+        //            Pitch = 1.0f,
+        //            Volume = 1.0f
+        //        };
 
-                Debug.WriteLine($"[TTS] Lang={languageCode} | Locale={locale?.Language ?? "default"} | Text={text}");
+        //        Debug.WriteLine($"[TTS] Lang={languageCode} | Locale={locale?.Language ?? "default"} | Text={text}");
 
-                await TextToSpeech.Default.SpeakAsync(text, options);
+        //        await TextToSpeech.Default.SpeakAsync(text, options);
 
-                Debug.WriteLine("[TTS OK] Đọc xong");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[TTS ERROR] {ex}");
-                resultLabel.Text = "Thiết bị/emulator chưa hỗ trợ Text-to-Speech";
-            }
-            finally
-            {
-                isSpeaking = false;
-            }
-        }
+        //        Debug.WriteLine("[TTS OK] Đọc xong");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Debug.WriteLine($"[TTS ERROR] {ex}");
+        //        resultLabel.Text = "Thiết bị/emulator chưa hỗ trợ Text-to-Speech";
+        //    }
+        //    finally
+        //    {
+        //        isSpeaking = false;
+        //    }
+        //}
 
         // Công dụng: lấy nội dung thuyết minh theo ngôn ngữ đang chọn, có fallback về tiếng Việt
         private string GetPoiTextByLanguage(Poi poi, string currentLanguage)
@@ -865,6 +896,13 @@ namespace FoodGuideApp
         {
             return latitude >= -90 && latitude <= 90 &&
                    longitude >= -180 && longitude <= 180;
+        }
+        // dừng audio đang phát
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+
+            audioManager.StopCurrent(); 
         }
     }
 }

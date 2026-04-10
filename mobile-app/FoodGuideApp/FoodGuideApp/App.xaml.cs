@@ -2,9 +2,11 @@
 
 public partial class App : Application
 {
-    public App()
+    // Công dụng: nhận MainPage từ Dependency Injection
+    // để MainPage có thể dùng các service đã đăng ký trong MauiProgram.
+    public App(AppShell shell)
     {
         InitializeComponent();
-        MainPage = new AppShell(); 
+        MainPage = shell;
     }
 }

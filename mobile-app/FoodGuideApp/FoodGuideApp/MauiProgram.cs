@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp.Views.Maui.Controls.Hosting;
+using FoodGuideApp.Services;
 
 namespace FoodGuideApp
 {
@@ -8,6 +10,7 @@ namespace FoodGuideApp
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
+            builder.Services.AddSingleton<AppShell>();
             builder
                 .UseMauiApp<App>()
                 .UseSkiaSharp()
@@ -19,6 +22,14 @@ namespace FoodGuideApp
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
+
+#if ANDROID
+            builder.Services.AddSingleton<IAudioFocusService, AndroidAudioFocusService>();
+#else
+            builder.Services.AddSingleton<IAudioFocusService, NullAudioFocusService>();
+#endif
+
+            builder.Services.AddSingleton<MainPage>();
 
             return builder.Build();
         }
