@@ -4,82 +4,161 @@
 @inject UserSession Session
 @inject NavigationManager Nav
 
-<h3>Quản lý Audio Thuyết Minh</h3>
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-mic-fill me-2"></i>Quản lý Audio Thuyết minh</h3>
+            <small class="text-muted">Chuyển đổi văn bản thành giọng nói (TTS) đa ngôn ngữ</small>
+        </div>
+    </div>
 
-<div class="mb-3">
-    <label>Chọn POI</label>
-    <select class="form-select" @onchange="OnPoiChanged">
-        <option value="0">-- Chọn điểm tham quan --</option>
-        @if (pois != null)
-        {
-            @foreach (var poi in pois)
-            {
-                <option value="@poi.Id">@poi.Name</option>
-            }
-        }
-    </select>
-</div>
-
-@if (selectedPoiId > 0 && translations != null)
-{
-    @if (!Session.IsAdmin && Session.PoiId != selectedPoiId)
-    {
-        <div class="alert alert-warning">⚠️ Bạn không có quyền tạo audio cho quầy này.</div>
-    }
-    else
-    {
-        <table class="table table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Ngôn ngữ</th>
-                    <th>Nội dung</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in translations)
-                {
-                    <tr>
-                        <td>@t.Language.ToUpper()</td>
-                        <td>@t.Text</td>
-                        <td>
-                            @if (generatedUrls.ContainsKey(t.Language))
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-2">
+                    <label class="fw-bold text-secondary text-uppercase small">Chọn POI</label>
+                </div>
+                <div class="col-md-6">
+                    <select class="form-select border-primary-subtle shadow-sm" @onchange="OnPoiChanged">
+                        <option value="0">-- Chọn điểm tham quan để quản lý âm thanh --</option>
+                        @if (pois != null)
+                        {
+                            @foreach (var poi in pois)
                             {
-                                <span class="badge bg-success">✓ Đã tạo</span>
-                                <audio controls src="http://localhost:5000@generatedUrls[t.Language]"
-                                       class="ms-2" style="height:30px"></audio>
+                                <option value="@poi.Id">@poi.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (selectedPoiId > 0)
+    {
+        @if (!Session.IsAdmin && Session.PoiId != selectedPoiId)
+        {
+            <div class="alert alert-warning border-0 shadow-sm animate__animated animate__shakeX">
+                <i class="bi bi-exclamation-octagon-fill me-2"></i> Bạn không có quyền quản lý audio cho địa điểm này.
+            </div>
+        }
+        else
+        {
+            @if (!string.IsNullOrEmpty(message))
+            {
+                <div class="alert alert-info border-0 shadow-sm alert-dismissible fade show animate__animated animate__fadeIn">
+                    <i class="bi bi-info-circle-fill me-2"></i> @message
+                    <button type="button" class="btn-close" @onclick='() => message = ""'></button>
+                </div>
+            }
+
+            <div class="card border-0 shadow-sm rounded-3 overflow-hidden animate__animated animate__fadeInUp">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-primary text-white text-uppercase small">
+                            <tr>
+                                <th class="ps-4 py-3">Ngôn ngữ</th>
+                                <th>Nội dung văn bản</th>
+                                <th>Trạng thái & Nghe thử</th>
+                                <th class="text-center pe-4">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white">
+                            @if (translations == null)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                        <div class="mt-2 text-muted">Đang tải bản dịch...</div>
+                                    </td>
+                                </tr>
+                            }
+                            else if (!translations.Any())
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted small italic">
+                                        Địa điểm này chưa có nội dung thuyết minh. Hãy qua trang [Bản dịch] để soạn thảo trước.
+                                    </td>
+                                </tr>
                             }
                             else
                             {
-                                <span class="badge bg-secondary">Chưa tạo</span>
+                                @foreach (var t in translations)
+                                {
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="d-flex align-items-center">
+                                                <span class="fs-4 me-2">@GetFlag(t.Language)</span>
+                                                <span class="fw-bold text-dark">@t.Language.ToUpper()</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="text-muted small text-truncate" style="max-width: 350px;" title="@t.Text">
+                                                @t.Text
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if (t.HasAudio || generatedUrls.ContainsKey(t.Language))
+                                            {
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2">
+                                                        <i class="bi bi-check-circle-fill"></i> Sẵn sàng
+                                                    </span>
+                                                    <audio controls class="tts-player" 
+                                                           src="http://localhost:5000/audio/tts_@(selectedPoiId)_@(t.Language).mp3?v=@DateTime.Now.Ticks">
+                                                    </audio>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-secondary border px-2">
+                                                    <i class="bi bi-slash-circle"></i> Chưa có file
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="text-center pe-4">
+                                            <button class="btn @(t.HasAudio ? "btn-outline-primary" : "btn-primary") btn-sm px-4 rounded-pill shadow-sm"
+                                                    @onclick="() => GenerateAudio(t)"
+                                                    disabled="@isGenerating">
+                                                @if (generatingLang == t.Language)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                                    <span>Đang tạo...</span>
+                                                }
+                                                else
+                                                {
+                                                    <i class="bi bi-play-circle-fill me-1"></i>
+                                                    <span>@(t.HasAudio ? "Tạo lại" : "Tạo Audio")</span>
+                                                }
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
                             }
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-primary"
-                                    @onclick="() => GenerateAudio(t)"
-                                    disabled="@isGenerating">
-                                @if (generatingLang == t.Language)
-                                {
-                                    <span>⏳ Đang tạo...</span>
-                                }
-                                else
-                                {
-                                    <span>🔊 Tạo Audio</span>
-                                }
-                            </button>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
     }
-}
+    else
+    {
+        <div class="text-center py-5 mt-5 animate__animated animate__fadeIn">
+            <i class="bi bi-soundwave display-1 text-light"></i>
+            <h4 class="text-muted mt-3">Vui lòng chọn POI để tiếp tục</h4>
+            <p class="text-secondary small">Hệ thống sẽ liệt kê các bản dịch sẵn có để tạo giọng nói.</p>
+        </div>
+    }
+</div>
 
-@if (message != null)
-{
-    <div class="alert alert-info mt-3">@message</div>
-}
+<style>
+    .tts-player { height: 32px; width: 180px; filter: sepia(20%) saturate(70%) grayscale(1); }
+    .table thead th { font-weight: 700; letter-spacing: 0.5px; border: none; }
+    .table tbody tr { transition: background 0.2s; }
+    .table tbody tr:hover { background-color: #f8faff; }
+    .badge { font-weight: 500; font-size: 0.75rem; }
+    .animate__animated { animation-duration: 0.6s; }
+</style>
 
 @code {
     private List<PoiDto>? pois;
@@ -92,30 +171,36 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsLoggedIn)
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
-
-        var http = HttpFactory.CreateClient("WebAPI");
-        var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-
-        // Staff chỉ thấy quầy của mình
-        pois = Session.IsAdmin
-            ? allPois
-            : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+        if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            pois = Session.IsAdmin ? allPois : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+        } catch (Exception ex) { message = $"❌ Lỗi kết nối API: {ex.Message}"; }
     }
+
+    private string GetFlag(string code) => code.ToLower() switch {
+        "vi" => "🇻🇳", "en" => "🇺🇸", "zh" => "🇨🇳", "ja" => "🇯🇵", "ko" => "🇰🇷", "fr" => "🇫🇷", _ => "🌐"
+    };
 
     private async Task OnPoiChanged(ChangeEventArgs e)
     {
         selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
-        generatedUrls.Clear();
+        generatedUrls.Clear(); 
+        translations = null;
         message = null;
+        
+        if (selectedPoiId > 0) {
+            await LoadTranslations();
+        }
+    }
 
-        var http = HttpFactory.CreateClient("WebAPI");
-        translations = await http.GetFromJsonAsync<List<TranslationDto>>(
-            $"/api/Translation/{selectedPoiId}");
+    private async Task LoadTranslations()
+    {
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            translations = await http.GetFromJsonAsync<List<TranslationDto>>($"/api/Translation/{selectedPoiId}");
+        } catch (Exception ex) { message = $"❌ Lỗi tải dữ liệu: {ex.Message}"; }
     }
 
     private async Task GenerateAudio(TranslationDto t)
@@ -123,58 +208,42 @@
         isGenerating = true;
         generatingLang = t.Language;
         message = null;
-
-        try
-        {
+        
+        try {
             var http = HttpFactory.CreateClient("WebAPI");
-            var response = await http.PostAsJsonAsync("/api/Tts/generate", new
-            {
-                poiId = selectedPoiId.ToString(),
-                text = t.Text,
-                language = t.Language
+            var response = await http.PostAsJsonAsync("/api/Tts/generate", new {
+                PoiId = selectedPoiId, 
+                Text = t.Text,
+                Language = t.Language
             });
 
-            if (response.IsSuccessStatusCode)
-            {
+            if (response.IsSuccessStatusCode) {
                 var result = await response.Content.ReadFromJsonAsync<TtsResult>();
-                if (result?.AudioUrl != null)
-                {
+                if (result?.AudioUrl != null) {
                     generatedUrls[t.Language] = result.AudioUrl;
-                    message = $"Tạo audio {t.Language.ToUpper()} thành công!";
+                    message = $"✅ Đã tạo audio [{t.Language.ToUpper()}] thành công!";
+                    await LoadTranslations(); // Reload để cập nhật trạng thái HasAudio từ DB
                 }
+            } else { 
+                message = "❌ Lỗi: Server không thể tạo audio (Kiểm tra lại cấu hình ngôn ngữ)."; 
             }
-            else
-            {
-                message = "Lỗi: Cần Azure Key để tạo audio thật. Xem appsettings.json";
-            }
-        }
-        catch (Exception ex)
-        {
-            message = $"Lỗi: {ex.Message}";
-        }
-        finally
-        {
-            isGenerating = false;
-            generatingLang = null;
+        } catch (Exception ex) { 
+            message = $"❌ Lỗi kết nối: {ex.Message}"; 
+        } finally { 
+            isGenerating = false; 
+            generatingLang = null; 
         }
     }
 
-    public class PoiDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-    }
+    public class PoiDto { public int Id { get; set; } public string Name { get; set; } = ""; }
 
-    public class TranslationDto
-    {
-        public int Id { get; set; }
+    public class TranslationDto {
+        public int Id { get; set; } 
         public int PoiId { get; set; }
         public string Language { get; set; } = "";
         public string Text { get; set; } = "";
+        public bool HasAudio { get; set; } 
     }
 
-    public class TtsResult
-    {
-        public string? AudioUrl { get; set; }
-    }
+    public class TtsResult { public string? AudioUrl { get; set; } }
 }

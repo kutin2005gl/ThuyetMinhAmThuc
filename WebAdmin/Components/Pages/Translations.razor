@@ -4,115 +4,216 @@
 @inject UserSession Session
 @inject NavigationManager Nav
 
-<h3>Quản lý nội dung thuyết minh</h3>
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-translate me-2"></i>Quản lý Nội dung Thuyết minh</h3>
+            <small class="text-muted">Soạn thảo và dịch tự động nội dung cho từng địa điểm</small>
+        </div>
+    </div>
 
-<div class="mb-3">
-    <label>Chọn POI</label>
-    <select class="form-select" @onchange="OnPoiChanged">
-        <option value="0">-- Chọn điểm tham quan --</option>
-        @if (pois != null)
-        {
-            @foreach (var poi in pois)
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <label class="form-label fw-bold"><i class="bi bi-search me-1"></i> Chọn Điểm tham quan</label>
+                    <select class="form-select form-select-lg border-primary-subtle shadow-sm" @onchange="OnPoiChanged">
+                        <option value="0">-- Chọn POI cần soạn nội dung --</option>
+                        @if (pois != null)
+                        {
+                            @foreach (var poi in pois)
+                            {
+                                <option value="@poi.Id">@poi.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+
+            @if (selectedPoiId > 0)
             {
-                <option value="@poi.Id">@poi.Name</option>
+                @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
+                {
+                    <div class="card border-0 shadow-sm animate__animated animate__fadeInLeft">
+                        <div class="card-header bg-dark text-white fw-bold py-3">
+                            <i class="bi bi-pencil-fill me-2"></i>SOẠN THẢO NỘI DUNG
+                        </div>
+                        <div class="card-body bg-light p-4">
+                            <div class="mb-3">
+                                <label class="form-label fw-bold text-primary">Ngôn ngữ nguồn</label>
+                                <select class="form-select border-0 shadow-sm" @bind="form.Language">
+                                    @if (availableLanguages != null && availableLanguages.Any())
+                                    {
+                                        @foreach (var lang in availableLanguages)
+                                        {
+                                            <option value="@lang.Code">
+                                                @GetFlag(lang.Code) @lang.Name (@lang.Code.ToUpper())
+                                            </option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="vi">🇻🇳 Tiếng Việt (Gốc)</option>
+                                    }
+                                </select>
+                                <small class="text-muted d-block mt-2 italic">
+                                    <i class="bi bi-info-circle me-1"></i>Hệ thống sẽ tự dịch sang các ngôn ngữ còn lại.
+                                </small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Nội dung chi tiết</label>
+                                <textarea class="form-control border-0 shadow-sm" rows="10" 
+                                          @bind="form.Text" placeholder="Nhập nội dung thuyết minh tại đây..."></textarea>
+                            </div>
+                            <button class="btn btn-success w-100 py-2 fw-bold shadow-sm" @onclick="SaveTranslation" disabled="@isSaving">
+                                @if (isSaving)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                    <span>Đang dịch...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-magic me-2"></i>
+                                    <span>Lưu và Dịch tự động</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning border-0 shadow-sm animate__animated animate__shakeX">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i> Bạn không có quyền chỉnh sửa nội dung cho quầy này.
+                    </div>
+                }
             }
-        }
-    </select>
+        </div>
+
+        <div class="col-lg-8">
+            @if (selectedPoiId == 0)
+            {
+                <div class="card border-0 shadow-sm bg-white text-center py-5">
+                    <div class="card-body">
+                        <i class="bi bi-geo-alt-fill display-1 text-light"></i>
+                        <h4 class="text-muted mt-3">Chọn một địa điểm để xem nội dung</h4>
+                        <p class="text-secondary small">Các bản dịch đa ngôn ngữ sẽ xuất hiện tại đây</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="alert @(message.Contains("❌") ? "alert-danger" : "alert-info") border-0 shadow-sm alert-dismissible fade show mb-4 animate__animated animate__fadeIn">
+                        @message
+                        <button type="button" class="btn-close" @onclick='() => message = ""'></button>
+                    </div>
+                }
+
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden animate__animated animate__fadeIn">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-primary text-white">
+                                <tr>
+                                    <th class="ps-4 py-3" style="width: 180px;">NGÔN NGỮ</th>
+                                    <th>NỘI DUNG THUYẾT MINH</th>
+                                    @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
+                                    {
+                                        <th class="text-center pe-4" style="width: 120px;">THAO TÁC</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                @if (translations != null && translations.Any())
+                                {
+                                    @foreach (var t in translations)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="fs-4 me-2">@GetFlag(t.Language)</span>
+                                                    <span class="badge bg-light text-primary border border-primary-subtle px-2 py-2 text-uppercase fw-bold">
+                                                        @t.Language
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="text-dark py-2" style="line-height: 1.6; text-align: justify; font-size: 0.95rem;">
+                                                    @t.Text
+                                                </div>
+                                            </td>
+                                            @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
+                                            {
+                                                <td class="text-center pe-4">
+                                                    <div class="btn-group shadow-sm rounded-pill overflow-hidden">
+                                                        <button class="btn btn-warning border-0 px-3" @onclick="() => EditTranslation(t)" title="Sửa">
+                                                            <i class="bi bi-pencil-square"></i>
+                                                        </button>
+                                                        <button class="btn btn-danger border-0 px-3" @onclick="() => DeleteTranslation(t.Id)" title="Xóa">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                                else if (translations != null)
+                                {
+                                    <tr>
+                                        <td colspan="3" class="text-center py-5">
+                                            <i class="bi bi-chat-left-dots display-4 text-light"></i>
+                                            <p class="text-muted mt-2 italic">Địa điểm này chưa có nội dung thuyết minh.</p>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
 </div>
 
-@if (selectedPoiId > 0)
-{
-    @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
-    {
-        <div class="card p-3 mb-3">
-            <h5>Thêm / Cập nhật nội dung</h5>
-            <div class="mb-2">
-                <label>Ngôn ngữ</label>
-                <select class="form-select" @bind="form.Language">
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                    <option value="zh">中文</option>
-                </select>
-            </div>
-            <div class="mb-2">
-                <label>Nội dung thuyết minh</label>
-                <textarea class="form-control" rows="4" @bind="form.Text"></textarea>
-            </div>
-            <button class="btn btn-success" @onclick="SaveTranslation">Lưu</button>
-        </div>
-    }
-    else
-    {
-        <div class="alert alert-warning">⚠️ Bạn không có quyền sửa quầy này.</div>
-    }
-
-    @if (message != null)
-    {
-        <div class="alert alert-info">@message</div>
-    }
-
-    @if (translations != null && translations.Any())
-    {
-        <table class="table table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Ngôn ngữ</th>
-                    <th>Nội dung</th>
-                    @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
-                    {
-                        <th>Hành động</th>
-                    }
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in translations)
-                {
-                    <tr>
-                        <td>@t.Language.ToUpper()</td>
-                        <td>@t.Text</td>
-                        @if (Session.IsAdmin || Session.PoiId == selectedPoiId)
-                        {
-                            <td>
-                                <button class="btn btn-sm btn-warning me-1"
-                                        @onclick="() => EditTranslation(t)">Sửa</button>
-                                <button class="btn btn-sm btn-danger"
-                                        @onclick="() => DeleteTranslation(t.Id)">Xóa</button>
-                            </td>
-                        }
-                    </tr>
-                }
-            </tbody>
-        </table>
-    }
-    else if (translations != null)
-    {
-        <p>Chưa có nội dung thuyết minh cho POI này.</p>
-    }
-}
+<style>
+    .table thead th { font-weight: 700; font-size: 0.75rem; letter-spacing: 1px; }
+    .btn-group .btn:hover { filter: brightness(0.9); }
+    .form-select-lg { font-size: 1rem; font-weight: 600; }
+    textarea { resize: none; border-radius: 8px !important; }
+    .italic { font-style: italic; font-size: 0.85rem; }
+    .animate__animated { animation-duration: 0.6s; }
+</style>
 
 @code {
     private List<PoiDto>? pois;
     private List<TranslationDto>? translations;
+    private List<SupportedLanguageDto> availableLanguages = new();
     private TranslationForm form = new();
     private int selectedPoiId = 0;
     private string? message;
+    private bool isSaving = false;
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsLoggedIn)
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
+        if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
+        
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            
+            // 1. Tải danh sách POI
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            pois = Session.IsAdmin ? allPois : allPois?.Where(p => p.Id == Session.PoiId).ToList();
 
-        var http = HttpFactory.CreateClient("WebAPI");
-        var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-
-        // Staff chỉ thấy quầy của mình
-        pois = Session.IsAdmin
-            ? allPois
-            : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+            // 2. Tải danh sách Ngôn ngữ hỗ trợ từ Database
+            availableLanguages = await http.GetFromJsonAsync<List<SupportedLanguageDto>>("/api/Language") ?? new();
+        } 
+        catch { message = "❌ Lỗi: Không thể kết nối tới máy chủ."; }
     }
+
+    private string GetFlag(string code) => code.ToLower() switch {
+        "vi" => "🇻🇳", "en" => "🇺🇸", "zh" => "🇨🇳", "ja" => "🇯🇵", "ko" => "🇰🇷", "fr" => "🇫🇷", "de" => "🇩🇪", _ => "🌐"
+    };
 
     private async Task OnPoiChanged(ChangeEventArgs e)
     {
@@ -124,59 +225,56 @@
 
     private async Task LoadTranslations()
     {
+        if (selectedPoiId <= 0) return;
         var http = HttpFactory.CreateClient("WebAPI");
-        translations = await http.GetFromJsonAsync<List<TranslationDto>>(
-            $"/api/Translation/{selectedPoiId}");
+        translations = await http.GetFromJsonAsync<List<TranslationDto>>($"/api/Translation/{selectedPoiId}");
     }
 
     private async Task SaveTranslation()
     {
-        var http = HttpFactory.CreateClient("WebAPI");
-        await http.PostAsJsonAsync("/api/Translation", new
-        {
-            PoiId = selectedPoiId,
-            form.Language,
-            form.Text
-        });
-        message = "Lưu thành công!";
-        form = new TranslationForm { Language = "vi" };
-        await LoadTranslations();
+        if (string.IsNullOrWhiteSpace(form.Text)) { message = "⚠️ Vui lòng nhập nội dung thuyết minh!"; return; }
+        
+        isSaving = true;
+        message = "⏳ Hệ thống AI đang dịch thuật đa ngôn ngữ...";
+        StateHasChanged();
+        
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var response = await http.PostAsJsonAsync("/api/Translation", new {
+                PoiId = selectedPoiId,
+                form.Language,
+                form.Text
+            });
+            
+            if (response.IsSuccessStatusCode) {
+                var result = await response.Content.ReadFromJsonAsync<SaveResult>();
+                message = $"✅ {result?.Message}";
+                form = new TranslationForm { Language = "vi" };
+                await LoadTranslations();
+            } else { message = "❌ Lỗi khi thực hiện dịch thuật."; }
+        } 
+        catch { message = "❌ Lỗi kết nối máy chủ."; }
+        finally { isSaving = false; }
     }
 
-    private void EditTranslation(TranslationDto t)
-    {
-        form = new TranslationForm
-        {
-            Language = t.Language,
-            Text = t.Text
-        };
-    }
+    private void EditTranslation(TranslationDto t) => form = new TranslationForm { Language = t.Language, Text = t.Text };
 
     private async Task DeleteTranslation(int id)
     {
         var http = HttpFactory.CreateClient("WebAPI");
         await http.DeleteAsync($"/api/Translation/{id}");
-        message = "Xóa thành công!";
+        message = "🗑️ Đã xóa bản dịch thành công!";
         await LoadTranslations();
     }
 
-    public class PoiDto
-    {
+    // DTO Models
+    public class PoiDto { public int Id { get; set; } public string Name { get; set; } = ""; }
+    public class TranslationDto { public int Id { get; set; } public int PoiId { get; set; } public string Language { get; set; } = ""; public string Text { get; set; } = ""; }
+    public class TranslationForm { public string Language { get; set; } = "vi"; public string Text { get; set; } = ""; }
+    public class SaveResult { public string? Message { get; set; } }
+    public class SupportedLanguageDto {
         public int Id { get; set; }
+        public string Code { get; set; } = "";
         public string Name { get; set; } = "";
-    }
-
-    public class TranslationDto
-    {
-        public int Id { get; set; }
-        public int PoiId { get; set; }
-        public string Language { get; set; } = "";
-        public string Text { get; set; } = "";
-    }
-
-    public class TranslationForm
-    {
-        public string Language { get; set; } = "vi";
-        public string Text { get; set; } = "";
     }
 }

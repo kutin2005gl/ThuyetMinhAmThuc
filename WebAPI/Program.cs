@@ -8,7 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<ITtsGeneratorService, TtsGeneratorService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<AudioService>();
+//builder.Services.AddScoped<ITtsGeneratorService, TtsGeneratorService>();
+builder.Services.AddSingleton<TranslateService>();
 
 // Dùng SQLite cho dev
 builder.Services.AddDbContext<AppDbContext>(options =>

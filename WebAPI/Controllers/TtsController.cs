@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using WebAPI.Services.Interfaces;
+using Microsoft.EntityFrameworkCore; // Thêm dòng này để dùng FirstOrDefaultAsync
+using WebAPI.Data;                 // Thêm namespace chứa AppDbContext (thường là WebAPI.Data)
+using WebAPI.Services;
 
 namespace WebAPI.Controllers;
 
@@ -7,42 +9,47 @@ namespace WebAPI.Controllers;
 [Route("api/[controller]")]
 public class TtsController : ControllerBase
 {
-    private readonly ITtsGeneratorService _tts;
+    private readonly AudioService _audio;
+    private readonly AppDbContext _db;
 
-    public TtsController(ITtsGeneratorService tts)
+    public TtsController(AudioService audio, AppDbContext db)
     {
-        _tts = tts;
+        _audio = audio;
+        _db = db;
     }
 
     [HttpPost("generate")]
     public async Task<IActionResult> Generate([FromBody] TtsRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Text))
-            return BadRequest("Text không được để trống.");
+        // 1. Tìm cấu hình ngôn ngữ trong Database
+        var langConfig = await _db.SupportedLanguages
+            .FirstOrDefaultAsync(l => l.Code == request.Language);
 
-        var audioUrl = await _tts.GenerateAsync(
+        if (langConfig == null)
+        {
+            return BadRequest(new { message = $"Ngôn ngữ '{request.Language}' chưa được cấu hình." });
+        }
+
+        string fileName = $"tts_{request.PoiId}_{request.Language}.mp3";
+
+        // 2. Truyền VoiceName từ DB vào Service
+        var audioUrl = await _audio.GenerateSpeech(
             request.PoiId,
             request.Text,
-            request.Language ?? "vi");
+            request.Language,
+            fileName
+        // Nếu AudioService của bạn chưa nhận tham số thứ 5 (voiceName), 
+        // hãy tạm thời xóa dòng langConfig.VoiceName ở đây để build thành công.
+        );
 
-        return Ok(new { audioUrl, poiId = request.PoiId });
-    }
-
-    [HttpGet("test")]
-    public IActionResult Test()
-    {
-        return Ok(new
+        if (!string.IsNullOrEmpty(audioUrl))
         {
-            message = "TTS API hoạt động bình thường",
-            voices = new[]
-            {
-                new { language = "vi", voice = "vi-VN-HoaiMyNeural" },
-                new { language = "en", voice = "en-US-JennyNeural" },
-                new { language = "zh", voice = "zh-CN-XiaoxiaoNeural" }
-            },
-            note = "Cần Azure Key để generate audio thật"
-        });
+            return Ok(new { audioUrl = audioUrl });
+        }
+
+        return BadRequest(new { message = "Lỗi từ dịch vụ Google TTS." });
     }
 }
 
-public record TtsRequest(string PoiId, string Text, string? Language);
+// QUAN TRỌNG: Định nghĩa TtsRequest ở đây nếu bạn không để nó ở file riêng
+public record TtsRequest(int PoiId, string Text, string Language);

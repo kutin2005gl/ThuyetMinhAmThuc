@@ -4,85 +4,156 @@
 @inject UserSession Session
 @inject NavigationManager Nav
 
-<h3>Quản lý Tour</h3>
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-map-fill me-2"></i>Quản lý Tour Du lịch</h3>
+            <small class="text-muted">Tạo và sắp xếp lộ trình tham quan cho du khách</small>
+        </div>
+    </div>
 
-@if (Session.IsAdmin)
-{
-    <div class="card p-3 mb-3">
-        <h5>Tạo Tour mới</h5>
-        <div class="mb-2">
-            <label>Tên tour</label>
-            <input class="form-control" @bind="form.Name" placeholder="VD: Tour ẩm thực Quận 4"/>
-        </div>
-        <div class="mb-2">
-            <label>Mô tả</label>
-            <textarea class="form-control" rows="2" @bind="form.Description"></textarea>
-        </div>
-        <div class="mb-2">
-            <label>Chọn POI (theo thứ tự tham quan)</label>
-            @if (allPois != null)
+    <div class="row g-4">
+        @if (Session.IsAdmin)
+        {
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm sticky-top" style="top: 20px;">
+                    <div class="card-header bg-dark text-white fw-bold py-3">
+                        <i class="bi bi-plus-circle me-2"></i>TẠO TOUR MỚI
+                    </div>
+                    <div class="card-body bg-light p-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên Tour</label>
+                            <input class="form-control border-0 shadow-sm" @bind="form.Name" placeholder="VD: Khám phá ẩm thực Quận 1" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mô tả lộ trình</label>
+                            <textarea class="form-control border-0 shadow-sm" rows="3" @bind="form.Description" placeholder="Mô tả ngắn về trải nghiệm..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold"><i class="bi bi-list-check me-1"></i> Chọn Điểm tham quan</label>
+                            <div class="poi-selector-list p-2 bg-white rounded shadow-sm overflow-auto" style="max-height: 250px;">
+                                @if (allPois != null)
+                                {
+                                    @foreach (var poi in allPois)
+                                    {
+                                        <div class="form-check p-2 border-bottom last-border-none hover-bg-light">
+                                            <input class="form-check-input ms-0 me-2" type="checkbox"
+                                                   id="poi_@poi.Id"
+                                                   checked="@selectedPoiIds.Contains(poi.Id)"
+                                                   @onchange="e => TogglePoi(poi.Id, e)" />
+                                            <label class="form-check-label d-block cursor-pointer" for="poi_@poi.Id">
+                                                @poi.Name
+                                            </label>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+
+                        @if (selectedPoiIds.Any())
+                        {
+                            <div class="alert alert-primary border-0 shadow-sm py-2 mb-3 animate__animated animate__fadeIn">
+                                <small class="fw-bold d-block mb-1 text-uppercase" style="font-size: 0.7rem;">Thứ tự tham quan:</small>
+                                <div class="small">
+                                    @foreach (var id in selectedPoiIds)
+                                    {
+                                        <span class="badge bg-white text-primary me-1 mb-1 border border-primary-subtle shadow-sm">
+                                            @allPois?.FirstOrDefault(p => p.Id == id)?.Name
+                                        </span>
+                                        @if (id != selectedPoiIds.Last()) { <i class="bi bi-arrow-right text-primary"></i> }
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        <button class="btn btn-success w-100 py-2 fw-bold shadow mt-2" @onclick="CreateTour">
+                            <i class="bi bi-check-circle-fill me-2"></i>Xác nhận tạo Tour
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="@(Session.IsAdmin ? "col-lg-8" : "col-12")">
+            @if (!string.IsNullOrEmpty(message))
             {
-                @foreach (var poi in allPois)
+                <div class="alert alert-info border-0 shadow-sm alert-dismissible fade show mb-4 animate__animated animate__fadeIn">
+                    <i class="bi bi-info-circle-fill me-2"></i> @message
+                    <button type="button" class="btn-close" @onclick='() => message = ""'></button>
+                </div>
+            }
+
+            @if (tours == null)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2 text-muted">Đang tải danh sách tour...</p>
+                </div>
+            }
+            else if (!tours.Any())
+            {
+                <div class="card border-0 shadow-sm py-5 text-center">
+                    <i class="bi bi-signpost-2 display-1 text-light"></i>
+                    <h5 class="text-muted mt-3">Chưa có tour nào được tạo</h5>
+                </div>
+            }
+            else
+            {
+                @foreach (var tour in tours)
                 {
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox"
-                               id="poi_@poi.Id"
-                               @onchange="e => TogglePoi(poi.Id, e)"/>
-                        <label class="form-check-label" for="poi_@poi.Id">
-                            @poi.Name
-                        </label>
+                    <div class="card border-0 shadow-sm mb-4 tour-card animate__animated animate__fadeInUp">
+                        <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 fw-bold text-dark">@tour.Name</h5>
+                            @if (Session.IsAdmin)
+                            {
+                                <button class="btn btn-sm btn-outline-danger border-0 rounded-circle" 
+                                        @onclick="() => DeleteTour(tour.Id)" title="Xóa tour">
+                                    <i class="bi bi-trash3-fill"></i>
+                                </button>
+                            }
+                        </div>
+                        <div class="card-body">
+                            <p class="text-secondary small mb-3">@tour.Description</p>
+                            
+                            <div class="timeline-container d-flex align-items-center flex-wrap gap-2 p-3 bg-light rounded-3 shadow-inner">
+                                @{
+                                    var sortedPois = tour.Pois.OrderBy(p => p.Order).ToList();
+                                }
+                                @foreach (var tp in sortedPois)
+                                {
+                                    <div class="timeline-item d-flex align-items-center">
+                                        <div class="poi-badge d-flex align-items-center bg-white border rounded-pill px-3 py-2 shadow-sm">
+                                            <span class="badge bg-primary rounded-circle me-2">@tp.Order</span>
+                                            <span class="fw-semibold text-dark">@tp.Name</span>
+                                        </div>
+                                        @if (tp != sortedPois.Last())
+                                        {
+                                            <div class="mx-2 text-primary opacity-50">
+                                                <i class="bi bi-chevron-double-right"></i>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
                     </div>
                 }
             }
         </div>
-        @if (selectedPoiIds.Any())
-        {
-            <div class="alert alert-info py-2">
-                <small>Thứ tự đã chọn: @string.Join(" → ", selectedPoiIds.Select(id => allPois?.FirstOrDefault(p => p.Id == id)?.Name))</small>
-            </div>
-        }
-        <button class="btn btn-success" @onclick="CreateTour">Tạo Tour</button>
     </div>
-}
+</div>
 
-@if (message != null)
-{
-    <div class="alert alert-info">@message</div>
-}
-
-@if (tours == null)
-{
-    <p>Đang tải...</p>
-}
-else if (!tours.Any())
-{
-    <p>Chưa có tour nào.</p>
-}
-else
-{
-    @foreach (var tour in tours)
-    {
-        <div class="card mb-3">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>@tour.Name</strong>
-                @if (Session.IsAdmin)
-                {
-                    <button class="btn btn-sm btn-danger"
-                            @onclick="() => DeleteTour(tour.Id)">Xóa</button>
-                }
-            </div>
-            <div class="card-body">
-                <p class="text-muted">@tour.Description</p>
-                <div class="d-flex flex-wrap gap-2">
-                    @foreach (var tp in tour.Pois.OrderBy(p => p.Order))
-                    {
-                        <span class="badge bg-primary">@tp.Order. @tp.Name</span>
-                    }
-                </div>
-            </div>
-        </div>
-    }
-}
+<style>
+    .hover-bg-light:hover { background-color: #f8f9fa; transition: 0.2s; }
+    .cursor-pointer { cursor: pointer; }
+    .shadow-inner { box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+    .tour-card { border-left: 5px solid #0d6efd !important; transition: 0.3s; }
+    .tour-card:hover { transform: translateX(5px); }
+    .poi-badge { border: 1px solid #dee2e6; }
+    .poi-badge:hover { border-color: #0d6efd; background-color: #f0f7ff !important; }
+    .last-border-none:last-child { border-bottom: none !important; }
+</style>
 
 @code {
     private List<TourDto>? tours;
@@ -93,15 +164,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsLoggedIn)
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
+        if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
+        await LoadData();
+    }
 
-        var http = HttpFactory.CreateClient("WebAPI");
-        allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-        await LoadTours();
+    private async Task LoadData()
+    {
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            await LoadTours();
+        } catch (Exception ex) { message = "❌ Lỗi: " + ex.Message; }
     }
 
     private async Task LoadTours()
@@ -113,71 +186,61 @@ else
     private void TogglePoi(int poiId, ChangeEventArgs e)
     {
         var checked_ = (bool)(e.Value ?? false);
-        if (checked_)
-            selectedPoiIds.Add(poiId);
-        else
+        if (checked_) {
+            if (!selectedPoiIds.Contains(poiId)) selectedPoiIds.Add(poiId);
+        } else {
             selectedPoiIds.Remove(poiId);
+        }
     }
 
     private async Task CreateTour()
     {
-        if (string.IsNullOrWhiteSpace(form.Name))
-        {
-            message = "⚠️ Vui lòng nhập tên tour!";
-            return;
-        }
-        if (!selectedPoiIds.Any())
-        {
-            message = "⚠️ Vui lòng chọn ít nhất 1 POI!";
-            return;
-        }
+        if (string.IsNullOrWhiteSpace(form.Name)) { message = "⚠️ Vui lòng nhập tên tour!"; return; }
+        if (!selectedPoiIds.Any()) { message = "⚠️ Vui lòng chọn ít nhất 1 điểm tham quan!"; return; }
 
         var http = HttpFactory.CreateClient("WebAPI");
-        await http.PostAsJsonAsync("/api/Tour", new
-        {
+        var response = await http.PostAsJsonAsync("/api/Tour", new {
             form.Name,
             form.Description,
             PoiIds = selectedPoiIds
         });
 
-        message = "✅ Tạo tour thành công!";
-        form = new TourForm();
-        selectedPoiIds.Clear();
-        await LoadTours();
+        if (response.IsSuccessStatusCode) {
+            message = "✅ Tạo tour thành công!";
+            form = new TourForm();
+            selectedPoiIds.Clear();
+            await LoadTours();
+        } else {
+            message = "❌ Không thể tạo tour. Vui lòng thử lại.";
+        }
     }
 
     private async Task DeleteTour(int id)
     {
         var http = HttpFactory.CreateClient("WebAPI");
         await http.DeleteAsync($"/api/Tour/{id}");
-        message = "✅ Đã xóa tour!";
+        message = "🗑️ Đã xóa tour thành công!";
         await LoadTours();
     }
 
-    public class TourDto
-    {
+    // DTOs
+    public class TourDto {
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public string Description { get; set; } = "";
         public List<TourPoiDto> Pois { get; set; } = new();
     }
-
-    public class TourPoiDto
-    {
+    public class TourPoiDto {
         public int Order { get; set; }
         public int PoiId { get; set; }
         public string Name { get; set; } = "";
     }
-
-    public class PoiDto
-    {
+    public class PoiDto {
         public int Id { get; set; }
         public string Name { get; set; } = "";
     }
-
-    public class TourForm
-    {
+    public class TourForm {
         public string Name { get; set; } = "";
         public string Description { get; set; } = "";
     }
-} 
+}

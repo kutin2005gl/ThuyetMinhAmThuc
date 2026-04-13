@@ -4,99 +4,180 @@
 @inject UserSession Session
 @inject NavigationManager Nav
 
-<h3>Quản lý tài khoản</h3>
-
-@if (!Session.IsAdmin)
-{
-    <div class="alert alert-danger">Bạn không có quyền truy cập.</div>
-}
-else
-{
-    <div class="card p-3 mb-3">
-        <h5>Tạo tài khoản mới</h5>
-        <div class="row g-2">
-            <div class="col-md-3">
-                <input class="form-control" @bind="form.Username" placeholder="Tài khoản"/>
-            </div>
-            <div class="col-md-3">
-                <input class="form-control" type="password" @bind="form.Password" placeholder="Mật khẩu"/>
-            </div>
-            <div class="col-md-3">
-                <input class="form-control" @bind="form.FullName" placeholder="Họ tên"/>
-            </div>
-            <div class="col-md-2">
-                <select class="form-select" @bind="form.Role">
-                    <option value="Admin">Admin</option>
-                    <option value="Staff">Staff</option>
-                </select>
-            </div>
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-people-fill me-2"></i>Quản lý Hệ thống</h3>
+            <small class="text-muted">Quản lý tài khoản Admin và nhân viên phụ trách quầy (Staff)</small>
         </div>
-        @if (form.Role == "Staff")
-        {
-            <div class="mt-2">
-                <label>Quầy phụ trách</label>
-                <select class="form-select" @bind="form.PoiId">
-                    <option value="0">-- Chọn quầy --</option>
-                    @if (pois != null)
-                    {
-                        @foreach (var poi in pois)
-                        {
-                            <option value="@poi.Id">@poi.Name</option>
-                        }
-                    }
-                </select>
-            </div>
-        }
-        <button class="btn btn-success mt-2" @onclick="CreateUser">Tạo tài khoản</button>
+        <span class="badge bg-dark rounded-pill px-3 py-2">Tổng số: @(users?.Count ?? 0)</span>
     </div>
 
-    @if (message != null)
+    @if (!Session.IsAdmin)
     {
-        <div class="alert alert-info">@message</div>
+        <div class="alert alert-danger border-0 shadow-sm animate__animated animate__headShake">
+            <i class="bi bi-shield-lock-fill me-2"></i> <strong>Cảnh báo:</strong> Bạn không có quyền truy cập vào khu vực quản trị viên.
+        </div>
     }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-primary text-white fw-bold py-3">
+                        <i class="bi bi-person-plus-fill me-2"></i>TẠO TÀI KHOẢN MỚI
+                    </div>
+                    <div class="card-body p-4 bg-light">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tên đăng nhập</label>
+                            <input class="form-control border-0 shadow-sm" @bind="form.Username" placeholder="Nhập username..." />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Mật khẩu</label>
+                            <input class="form-control border-0 shadow-sm" type="password" @bind="form.Password" placeholder="••••••••" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Họ và Tên</label>
+                            <input class="form-control border-0 shadow-sm" @bind="form.FullName" placeholder="Nguyễn Văn A..." />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Vai trò hệ thống</label>
+                            <select class="form-select border-0 shadow-sm" @bind="form.Role">
+                                <option value="Staff">Nhân viên (Staff)</option>
+                                <option value="Admin">Quản trị viên (Admin)</option>
+                            </select>
+                        </div>
 
-    @if (users != null)
-    {
-        <table class="table table-bordered">
-            <thead class="table-dark">
-                <tr>
-                    <th>Tài khoản</th>
-                    <th>Họ tên</th>
-                    <th>Vai trò</th>
-                    <th>Quầy</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var user in users)
+                        @if (form.Role == "Staff")
+                        {
+                            <div class="mb-3 animate__animated animate__fadeInDown">
+                                <label class="form-label fw-bold text-primary">Quầy phụ trách (POI)</label>
+                                <select class="form-select border-primary-subtle shadow-sm" @bind="form.PoiId">
+                                    <option value="0">-- Chọn địa điểm phụ trách --</option>
+                                    @if (pois != null)
+                                    {
+                                        @foreach (var poi in pois)
+                                        {
+                                            <option value="@poi.Id">@poi.Name</option>
+                                        }
+                                    }
+                                </select>
+                                <small class="text-muted mt-1 d-block"><i class="bi bi-info-circle"></i> Staff chỉ có quyền sửa nội dung tại quầy này.</small>
+                            </div>
+                        }
+
+                        <button class="btn btn-success w-100 py-2 fw-bold shadow mt-3" @onclick="CreateUser">
+                            <i class="bi bi-check-circle-fill me-2"></i>Xác nhận tạo
+                        </button>
+                    </div>
+                </div>
+
+                @if (message != null)
                 {
-                    <tr>
-                        <td>@user.Username</td>
-                        <td>@user.FullName</td>
-                        <td>
-                            <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary")">
-                                @user.Role
-                            </span>
-                        </td>
-                        <td>@(pois?.FirstOrDefault(p => p.Id == user.PoiId)?.Name ?? "-")</td>
-                        <td>
-                            <span class="badge @(user.IsActive ? "bg-success" : "bg-secondary")">
-                                @(user.IsActive ? "Hoạt động" : "Đã khóa")
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm @(user.IsActive ? "btn-warning" : "btn-success")"
-                                    @onclick="() => ToggleUser(user.Id)">
-                                @(user.IsActive ? "🔒 Khóa" : "🔓 Mở khóa")
-                            </button>
-                        </td>
-                    </tr>
+                    <div class="alert @(message.Contains("✅") ? "alert-success" : "alert-danger") border-0 shadow-sm mt-3 animate__animated animate__fadeIn">
+                        @message
+                    </div>
                 }
-            </tbody>
-        </table>
+            </div>
+
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-dark text-white text-uppercase small">
+                                <tr>
+                                    <th class="ps-4 py-3">Người dùng</th>
+                                    <th>Vai trò</th>
+                                    <th>Quầy phụ trách</th>
+                                    <th>Trạng thái</th>
+                                    <th class="text-center pe-4">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white">
+                                @if (users == null)
+                                {
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-muted">Đang tải danh sách...</td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var user in users)
+                                    {
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-3 bg-primary-subtle text-primary fw-bold">
+                                                        @user.Username.Substring(0, 1).ToUpper()
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold text-dark">@user.FullName</div>
+                                                        <div class="small text-muted">@@@user.Username</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge @(user.Role == "Admin" ? "bg-danger" : "bg-primary") rounded-pill px-3">
+                                                    @user.Role
+                                                </span>
+                                            </td>
+                                            <td>
+                                                @if (user.Role == "Admin")
+                                                {
+                                                    <span class="text-muted italic small">Toàn quyền hệ thống</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-dark fw-medium">
+                                                        <i class="bi bi-geo-alt me-1 text-danger"></i>
+                                                        @(pois?.FirstOrDefault(p => p.Id == user.PoiId)?.Name ?? "Chưa gán")
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (user.IsActive)
+                                                {
+                                                    <span class="text-success small fw-bold"><i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i> Hoạt động</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-danger small fw-bold"><i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i> Đã khóa</span>
+                                                }
+                                            </td>
+                                            <td class="text-center pe-4">
+                                                <button class="btn btn-sm @(user.IsActive ? "btn-outline-warning" : "btn-success") px-3 rounded-pill fw-bold"
+                                                        @onclick="() => ToggleUser(user.Id)">
+                                                    @if (user.IsActive) { <i class="bi bi-lock-fill"></i> @(" Khóa") }
+                                                    else { <i class="bi bi-unlock-fill"></i> @(" Mở khóa") }
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
-}
+</div>
+
+<style>
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    .table thead th { font-weight: 700; font-size: 0.75rem; letter-spacing: 0.5px; border: none; }
+    .table tbody tr:hover { background-color: #f8faff; }
+    .animate__animated { animation-duration: 0.5s; }
+    .shadow-sm { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important; }
+</style>
 
 @code {
     private List<UserDto>? users;
@@ -112,9 +193,11 @@ else
             return;
         }
 
-        var http = HttpFactory.CreateClient("WebAPI");
-        pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-        await LoadUsers();
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            await LoadUsers();
+        } catch { message = "❌ Không thể kết nối đến máy chủ!"; }
     }
 
     private async Task LoadUsers()
@@ -125,6 +208,11 @@ else
 
     private async Task CreateUser()
     {
+        if (string.IsNullOrWhiteSpace(form.Username) || string.IsNullOrWhiteSpace(form.Password)) {
+            message = "⚠️ Vui lòng nhập đầy đủ Tài khoản & Mật khẩu!";
+            return;
+        }
+
         var http = HttpFactory.CreateClient("WebAPI");
         var response = await http.PostAsJsonAsync("/api/Auth/register", new
         {
@@ -135,12 +223,13 @@ else
             PoiId = form.PoiId == 0 ? (int?)null : form.PoiId
         });
 
-        message = response.IsSuccessStatusCode
-            ? "✅ Tạo tài khoản thành công!"
-            : "❌ Tài khoản đã tồn tại!";
-
-        form = new RegisterForm();
-        await LoadUsers();
+        if (response.IsSuccessStatusCode) {
+            message = "✅ Tạo tài khoản thành công!";
+            form = new RegisterForm();
+            await LoadUsers();
+        } else {
+            message = "❌ Lỗi: Tài khoản đã tồn tại hoặc dữ liệu không hợp lệ!";
+        }
     }
 
     private async Task ToggleUser(int id)
@@ -150,8 +239,7 @@ else
         await LoadUsers();
     }
 
-    public class UserDto
-    {
+    public class UserDto {
         public int Id { get; set; }
         public string Username { get; set; } = "";
         public string FullName { get; set; } = "";
@@ -160,14 +248,12 @@ else
         public bool IsActive { get; set; }
     }
 
-    public class PoiDto
-    {
+    public class PoiDto {
         public int Id { get; set; }
         public string Name { get; set; } = "";
     }
 
-    public class RegisterForm
-    {
+    public class RegisterForm {
         public string Username { get; set; } = "";
         public string Password { get; set; } = "";
         public string FullName { get; set; } = "";

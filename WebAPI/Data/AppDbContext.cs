@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<Tour> Tours => Set<Tour>();
     public DbSet<TourPoi> TourPois => Set<TourPoi>();
+    public DbSet<SupportedLanguage> SupportedLanguages => Set<SupportedLanguage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
