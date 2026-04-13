@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddSingleton<UserSession>();
+builder.Services.AddScoped<UserSession>();
 
 // Kết nối tới WebAPI
 builder.Services.AddHttpClient("WebAPI", client =>

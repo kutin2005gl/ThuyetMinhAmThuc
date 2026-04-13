@@ -1,4 +1,5 @@
-﻿@inject WebAdmin.Services.UserSession Session
+﻿@implements IDisposable
+@inject WebAdmin.Services.UserSession Session
 @inject NavigationManager Nav
 
 <div class="top-row ps-3 navbar navbar-dark">
@@ -59,11 +60,14 @@
                 </NavLink>
             </div>
 
-            <div class="nav-item px-3 mt-3">
-                <span class="nav-link text-warning" style="cursor:pointer" @onclick="Logout">
-                    <span class="bi bi-box-arrow-left" aria-hidden="true"></span>
-                    Đăng xuất (@Session.FullName)
-                </span>
+            <div class="nav-item px-3 mt-auto mb-3">
+                <button class="btn logout-btn w-100 d-flex align-items-center justify-content-between py-2 shadow-sm" @onclick="Logout">
+                    <div class="text-start">
+                        <small class="d-block text-white-50" style="font-size: 0.7rem;">ĐANG ĐĂNG NHẬP</small>
+                        <span class="fw-bold text-white">@Session.FullName</span>
+                    </div>
+                    <i class="bi bi-box-arrow-right fs-5 text-warning"></i>
+                </button>
             </div>
         }
         else
@@ -79,12 +83,21 @@
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        // 🎧 Đăng ký: Khi Session báo có thay đổi, NavMenu sẽ tự StateHasChanged()
+        Session.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        // Hủy đăng ký để tránh rò rỉ bộ nhớ
+        Session.OnChange -= StateHasChanged;
+    }
+
     private void Logout()
     {
-        Session.Username = null;
-        Session.FullName = null;
-        Session.Role = null;
-        Session.PoiId = null;
+        Session.Logout();
         Nav.NavigateTo("/login", forceLoad: true);
     }
 }
