@@ -146,11 +146,14 @@ namespace FoodGuideApp
 
                     foreach (var poi in geoPois)
                     {
-                        if (poi.RadiusMeters == 0)
+                        // fallback radius
+                        if (poi.RadiusMeters <= 0)
                             poi.RadiusMeters = currentGeofenceRadius;
 
-                        if (poi.NearRadiusMeters == 0)
-                            poi.NearRadiusMeters = poi.RadiusMeters + 50;
+                        // 👇 tự tính thêm (backend không có)
+                        poi.NearRadiusMeters = poi.RadiusMeters + 50;
+
+                        Debug.WriteLine($"[POI OK] {poi.Name} | radius={poi.RadiusMeters} | near={poi.NearRadiusMeters}");
                     }
                 }
 
@@ -231,7 +234,7 @@ namespace FoodGuideApp
                         nullLocationCount = 0;
 
                         Debug.WriteLine($"[TRACKING] Current: {location.Latitude}, {location.Longitude}");
-
+                        Debug.WriteLine($"[UI CHECK] Lat={location.Latitude:F6}, Lng={location.Longitude:F6}");
                         string nearbyName = geoPois.Count > 0 ? GetNearbyPoiName(location) : "";
 
                         MainThread.BeginInvokeOnMainThread(() =>
@@ -274,7 +277,7 @@ namespace FoodGuideApp
                             await CheckEnterPoi(location);
                         }
 
-                        if ((DateTime.Now - lastMapUpdateTime).TotalSeconds >= 2)
+                        if ((DateTime.Now - lastMapUpdateTime).TotalSeconds >= 1)
                         {
                             lastMapUpdateTime = DateTime.Now;
 
@@ -325,29 +328,26 @@ namespace FoodGuideApp
             {
                 var request = new GeolocationRequest(
                     GeolocationAccuracy.Best,
-                    TimeSpan.FromSeconds(2));
+                    TimeSpan.FromSeconds(5));
 
-                var location = await Geolocation.Default.GetLocationAsync(request);
+                Location? location = null;
 
-                // 🔥 fallback nếu lần đầu null (emulator hay bị)
-                if (location == null)
+                for (int i = 1; i <= 3; i++)
                 {
-                    Debug.WriteLine("[LOCATION] null lần 1, thử lại...");
-
-                    await Task.Delay(300);
-
                     location = await Geolocation.Default.GetLocationAsync(request);
+
+                    if (location != null)
+                    {
+                        Debug.WriteLine($"[LOCATION] Lần {i}: {location.Latitude}, {location.Longitude}");
+                        return new SensorLocation(location.Latitude, location.Longitude);
+                    }
+
+                    Debug.WriteLine($"[LOCATION] null lần {i}, thử lại...");
+                    await Task.Delay(500);
                 }
 
-                if (location == null)
-                {
-                    Debug.WriteLine("[LOCATION] null lần 2");
-                    return null;
-                }
-
-                Debug.WriteLine($"[LOCATION] Current: {location.Latitude}, {location.Longitude}");
-
-                return new SensorLocation(location.Latitude, location.Longitude);
+                Debug.WriteLine("[LOCATION] null sau 3 lần thử");
+                return null;
             }
             catch (Exception ex)
             {
@@ -366,6 +366,7 @@ namespace FoodGuideApp
             Poi? bestPoi = null;
             double bestDistance = double.MaxValue;
 
+            // 1. Tìm POI tốt nhất đang nằm trong geofence
             foreach (var poi in geoPois)
             {
                 if (!IsValidCoordinate(poi.Latitude, poi.Longitude))
@@ -374,7 +375,7 @@ namespace FoodGuideApp
                     continue;
                 }
 
-                // Công dụng: lọc nhanh các POI quá xa để giảm số lần tính khoảng cách.
+                // Lọc nhanh POI quá xa để đỡ tốn tính toán
                 if (Math.Abs(location.Latitude - poi.Latitude) > 0.01 ||
                     Math.Abs(location.Longitude - poi.Longitude) > 0.01)
                 {
@@ -390,20 +391,19 @@ namespace FoodGuideApp
 
                 Debug.WriteLine($"[ENTER] {poi.Name} | dist={distanceMeters:F1}m | radius={poi.RadiusMeters}m | inside={isInside}");
 
-                if (isInside)
+                if (!isInside)
+                    continue;
+
+                if (bestPoi == null ||
+                    poi.Priority > bestPoi.Priority ||
+                    (poi.Priority == bestPoi.Priority && distanceMeters < bestDistance))
                 {
-                    if (bestPoi == null ||
-                        poi.Priority > bestPoi.Priority ||
-                        (poi.Priority == bestPoi.Priority && distanceMeters < bestDistance))
-                    {
-                        bestPoi = poi;
-                        bestDistance = distanceMeters;
-                    }
+                    bestPoi = poi;
+                    bestDistance = distanceMeters;
                 }
             }
 
-            // Công dụng: cập nhật giao diện geofence trên luồng chính
-            // để tránh lỗi "Only the original thread that created a view hierarchy can touch its views".
+            // 2. Cập nhật label geofence trên UI thread
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 if (bestPoi != null)
@@ -418,6 +418,7 @@ namespace FoodGuideApp
                 }
             });
 
+            // 3. Reset trạng thái các POI không phải bestPoi
             foreach (var poi in geoPois)
             {
                 if (!poiStates.ContainsKey(poi.Id))
@@ -426,63 +427,73 @@ namespace FoodGuideApp
                 var state = poiStates[poi.Id];
                 bool isBestPoi = bestPoi != null && poi.Id == bestPoi.Id;
 
-                if (isBestPoi)
-                {
-                    var now = DateTime.Now;
-
-                    if (!state.WasInside)
-                    {
-                        state.WasInside = true;
-                        state.LastTriggeredAt = now;
-
-                        if (!spokenPois.Contains(poi.Id))
-                        {
-                            string message = GetPoiTextByLanguage(poi, currentLanguage);
-
-                            if (string.IsNullOrWhiteSpace(message))
-                            {
-                                MainThread.BeginInvokeOnMainThread(() =>
-                                {
-                                    resultLabel.Text = $"⚠ Không có nội dung thuyết minh cho: {poi.Name}";
-                                });
-
-                                Debug.WriteLine($"[TTS SKIP] {poi.Name} không có text cho ngôn ngữ {currentLanguage}");
-                                continue;
-                            }
-
-                            MainThread.BeginInvokeOnMainThread(() =>
-                            {
-                                resultLabel.Text = $"🔊 Đang thuyết minh: {poi.Name} ({bestDistance:F0}m)";
-                            });
-
-                            try
-                            {
-                                await audioManager.EnqueueAsync(new AudioJob
-                                {
-                                    PoiId = poi.Id,
-                                    Language = currentLanguage,
-                                    Text = message,
-                                    Priority = poi.Priority
-                                });
-
-                                spokenPois.Add(poi.Id);
-                                Debug.WriteLine($"[TTS OK] {poi.Name} | lang={currentLanguage}");
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"[TTS ERROR] {poi.Name}: {ex.Message}");
-
-                                MainThread.BeginInvokeOnMainThread(() =>
-                                {
-                                    resultLabel.Text = $"❌ Lỗi thuyết minh: {poi.Name}";
-                                });
-                            }
-                        }
-                    }
-                }
-                else
+                if (!isBestPoi)
                 {
                     state.WasInside = false;
+                }
+            }
+
+            //
+            if (bestPoi == null)
+            {
+                ClearPoiDetails();
+                return;
+            }
+
+            if (!poiStates.ContainsKey(bestPoi.Id))
+                return;
+
+            var bestState = poiStates[bestPoi.Id];
+            var now = DateTime.Now;
+
+            // 5. Chỉ trigger khi vừa mới bước vào vùng
+            if (!bestState.WasInside)
+            {
+                bestState.WasInside = true;
+                bestState.LastTriggeredAt = now;
+                ShowPoiDetails(bestPoi);
+                if (!spokenPois.Contains(bestPoi.Id))
+                {
+                    string message = GetPoiTextByLanguage(bestPoi, currentLanguage);
+
+                    if (string.IsNullOrWhiteSpace(message))
+                    {
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            resultLabel.Text = $"⚠ Không có nội dung thuyết minh cho: {bestPoi.Name}";
+                        });
+
+                        Debug.WriteLine($"[TTS SKIP] {bestPoi.Name} không có text cho ngôn ngữ {currentLanguage}");
+                        return;
+                    }
+
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        resultLabel.Text = $"🔊 Đang thuyết minh: {bestPoi.Name} ({bestDistance:F0}m)";
+                    });
+
+                    try
+                    {
+                        await audioManager.EnqueueAsync(new AudioJob
+                        {
+                            PoiId = bestPoi.Id,
+                            Language = currentLanguage,
+                            Text = message,
+                            Priority = bestPoi.Priority
+                        });
+
+                        spokenPois.Add(bestPoi.Id);
+                        Debug.WriteLine($"[TTS OK] {bestPoi.Name} | lang={currentLanguage}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[TTS ERROR] {bestPoi.Name}: {ex.Message}");
+
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            resultLabel.Text = $"❌ Lỗi thuyết minh: {bestPoi.Name}";
+                        });
+                    }
                 }
             }
         }
@@ -819,29 +830,26 @@ namespace FoodGuideApp
             if (poi == null)
                 return "";
 
+            string lang = (currentLanguage ?? "vi").Trim();
+
             if (poi.Translations != null && poi.Translations.Count > 0)
             {
-                string lang = (currentLanguage ?? "vi").Trim().ToLower();
-
-                // 1. Ưu tiên đúng ngôn ngữ
                 var exact = poi.Translations.FirstOrDefault(t =>
                     !string.IsNullOrWhiteSpace(t.Language) &&
-                    t.Language.Trim().ToLower() == lang &&
+                    string.Equals(t.Language.Trim(), lang, StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrWhiteSpace(t.Text));
 
                 if (exact != null)
                     return exact.Text.Trim();
 
-                // 2. Nếu không có → fallback tiếng Việt
                 var vi = poi.Translations.FirstOrDefault(t =>
                     !string.IsNullOrWhiteSpace(t.Language) &&
-                    t.Language.Trim().ToLower() == "vi" &&
+                    string.Equals(t.Language.Trim(), "vi", StringComparison.OrdinalIgnoreCase) &&
                     !string.IsNullOrWhiteSpace(t.Text));
 
                 if (vi != null)
                     return vi.Text.Trim();
 
-                // 3. Nếu vẫn không có → lấy đại cái đầu tiên có text
                 var first = poi.Translations.FirstOrDefault(t =>
                     !string.IsNullOrWhiteSpace(t.Text));
 
@@ -849,7 +857,6 @@ namespace FoodGuideApp
                     return first.Text.Trim();
             }
 
-            // 4. Nếu không có translations → dùng description
             if (!string.IsNullOrWhiteSpace(poi.Description))
                 return poi.Description.Trim();
 
@@ -903,6 +910,54 @@ namespace FoodGuideApp
             base.OnDisappearing();
 
             audioManager.StopCurrent(); 
+        }
+        // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
+        // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
+        private void ShowPoiDetails(Poi poi)
+        {
+            if (poi == null)
+                return;
+
+            string description = GetPoiTextByLanguage(poi, currentLanguage);
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                poiNameLabel.Text = poi.Name;
+                poiDescriptionLabel.Text = string.IsNullOrWhiteSpace(description)
+                    ? "Không có mô tả"
+                    : description;
+
+                if (!string.IsNullOrWhiteSpace(poi.ImageUrl))
+                {
+                    try
+                    {
+                        poiImage.Source = ImageSource.FromUri(new Uri(poi.ImageUrl));
+                        poiImage.IsVisible = true;
+                    }
+                    catch
+                    {
+                        poiImage.Source = null;
+                        poiImage.IsVisible = false;
+                    }
+                }
+                else
+                {
+                    poiImage.Source = null;
+                    poiImage.IsVisible = false;
+                }
+            });
+        }
+        
+        // Xóa thông tin POI đang hiển thị trên giao diện (tên, mô tả, ảnh) khi không còn trong vùng geofence
+        private void ClearPoiDetails()
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                poiNameLabel.Text = "Chưa có POI đang hiển thị";
+                poiDescriptionLabel.Text = "Mô tả POI sẽ hiển thị ở đây";
+                poiImage.Source = null;
+                poiImage.IsVisible = false;
+            });
         }
     }
 }

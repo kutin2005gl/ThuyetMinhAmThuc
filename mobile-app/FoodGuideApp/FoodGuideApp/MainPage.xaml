@@ -37,9 +37,22 @@
                    Text="Chưa vào vùng geofence"
                    FontSize="18"
                    TextColor="Red" />
-          
 
+            <Label x:Name="poiNameLabel"
+                   Text="Chưa có POI đang hiển thị"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="Black" />
 
+            <Image x:Name="poiImage"
+                   HeightRequest="220"
+                   Aspect="AspectFill"
+                   IsVisible="False" />
+
+            <Label x:Name="poiDescriptionLabel"
+                   Text="Mô tả POI sẽ hiển thị ở đây"
+                   FontSize="16"
+                   LineBreakMode="WordWrap" />
 
         </VerticalStackLayout>
     </ScrollView>
