@@ -37,6 +37,7 @@ namespace FoodGuideApp
 
         // Layer marker POI trên bản đồ
         private MemoryLayer? poiLayer;
+        private Poi? nearestPoiCurrent = null;
 
         // Thời điểm check POI gần nhất để tránh spam
         private DateTime lastPoiCheckTime = DateTime.MinValue;
@@ -58,6 +59,8 @@ namespace FoodGuideApp
         private HashSet<int> spokenPois = new();
         private DateTime lastMapUpdateTime = DateTime.MinValue;
         private readonly AudioQueueManager audioManager;
+        private int? nearestPoiId = null;
+        private bool isManualViewingPoi = false;
         public MainPage(IAudioFocusService audioFocusService)
         {
             InitializeComponent();
@@ -264,7 +267,15 @@ namespace FoodGuideApp
 
                             if (nearestPoi != null)
                             {
+                                nearestPoiId = nearestPoi.Poi.Id;
+                                nearestPoiCurrent = nearestPoi.Poi;
+
                                 Debug.WriteLine($"[TRACKING] POI gần nhất: {nearestPoi.Poi.Name} - {nearestPoi.Distance:F1}m / {nearestPoi.Poi.RadiusMeters}m");
+
+                                MainThread.BeginInvokeOnMainThread(() =>
+                                {
+                                    HighlightNearestPoi();
+                                });
                             }
                         }
 
@@ -406,7 +417,7 @@ namespace FoodGuideApp
             // 2. Cập nhật label geofence trên UI thread
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (bestPoi != null)
+                if (bestPoi != null)    
                 {
                     geofenceLabel.Text = $"Đã vào vùng geofence: {bestPoi.Name} ({bestDistance:F1}m)";
                     geofenceLabel.TextColor = Colors.Green;
@@ -436,7 +447,10 @@ namespace FoodGuideApp
             //
             if (bestPoi == null)
             {
-                ClearPoiDetails();
+                if (!isManualViewingPoi)
+                {
+                    ClearPoiDetails();
+                }
                 return;
             }
 
@@ -451,7 +465,12 @@ namespace FoodGuideApp
             {
                 bestState.WasInside = true;
                 bestState.LastTriggeredAt = now;
+
+                isManualViewingPoi = false;
+
+                SavePoiInfoToPreferences(bestPoi, bestDistance);
                 ShowPoiDetails(bestPoi);
+
                 if (!spokenPois.Contains(bestPoi.Id))
                 {
                     string message = GetPoiTextByLanguage(bestPoi, currentLanguage);
@@ -494,8 +513,9 @@ namespace FoodGuideApp
                             resultLabel.Text = $"❌ Lỗi thuyết minh: {bestPoi.Name}";
                         });
                     }
-                }
+                
             }
+        }
         }
         // Công dụng: kiểm tra khi người dùng đang đến gần POI nhưng chưa vào hẳn geofence
         private void CheckNearPoi(SensorLocation location)
@@ -642,12 +662,12 @@ namespace FoodGuideApp
             var feature = new PointFeature(point.ToMPoint());
 
             feature.Styles.Add(new SymbolStyle
-            {
-                SymbolType = SymbolType.Ellipse,
-                Fill = new MapsuiBrush(new MapsuiColor(0, 120, 255)),
-                Outline = new MapsuiPen(new MapsuiColor(255, 255, 255), 2),
-                SymbolScale = 0.8
-            });
+{
+    SymbolType = SymbolType.Ellipse,
+    Fill = new MapsuiBrush(new MapsuiColor(0, 120, 255)),
+    Outline = new MapsuiPen(new MapsuiColor(255, 255, 255), 2),
+    SymbolScale = 0.6
+});
 
             var layer = new MemoryLayer
             {
@@ -666,7 +686,7 @@ namespace FoodGuideApp
         // Công dụng: hiển thị marker và tên các POI trên bản đồ
         private void ShowPoisOnMap()
         {
-            if (mapControl.Map == null || geoPois.Count == 0)
+            if (mapControl.Map == null)
                 return;
 
             if (poiLayer != null)
@@ -676,24 +696,31 @@ namespace FoodGuideApp
 
             foreach (var poi in geoPois)
             {
+                if (!IsValidCoordinate(poi.Latitude, poi.Longitude))
+                {
+                    Debug.WriteLine($"[MAP SKIP INVALID] {poi.Name} | Lat={poi.Latitude} | Lng={poi.Longitude}");
+                    continue;
+                }
+
                 var sphericalMercator = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
                 var feature = new PointFeature(new MPoint(sphericalMercator.x, sphericalMercator.y));
 
+                feature["PoiId"] = poi.Id;
                 feature["Label"] = poi.Name;
 
                 feature.Styles.Add(new SymbolStyle
                 {
                     SymbolType = SymbolType.Ellipse,
-                    Fill = new Mapsui.Styles.Brush(Mapsui.Styles.Color.Red),
-                    Outline = new Mapsui.Styles.Pen(Mapsui.Styles.Color.White, 2),
+                    Fill = new MapsuiBrush(MapsuiColor.Red),
+                    Outline = new MapsuiPen(MapsuiColor.White, 2),
                     SymbolScale = 1.0
                 });
 
-                feature.Styles.Add(new LabelStyle
-                {
-                    Text = poi.Name,
-                    Offset = new Offset(0, 20)
-                });
+                //feature.Styles.Add(new LabelStyle
+                //{
+                //    Text = poi.Name,
+                //    Offset = new Offset(0, 20)
+                //});
 
                 features.Add(feature);
             }
@@ -707,13 +734,72 @@ namespace FoodGuideApp
             mapControl.Map.Layers.Add(poiLayer);
             mapControl.Refresh();
 
-            var firstPoi = geoPois.FirstOrDefault();
+            var firstPoi = geoPois.FirstOrDefault(p => IsValidCoordinate(p.Latitude, p.Longitude));
             if (firstPoi != null)
             {
                 var center = SphericalMercator.FromLonLat(firstPoi.Longitude, firstPoi.Latitude);
                 mapControl.Map.Navigator.CenterOn(new MPoint(center.x, center.y));
                 mapControl.Map.Navigator.ZoomTo(5000);
             }
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                resultLabel.Text = $"Đã hiển thị {features.Count} POI trên bản đồ";
+            });
+        }
+        //highlight POI gan nhat
+        private void HighlightNearestPoi()
+        {
+            if (mapControl.Map == null)
+                return;
+
+            if (poiLayer != null)
+                mapControl.Map.Layers.Remove(poiLayer);
+
+            var features = new List<IFeature>();
+
+            foreach (var poi in geoPois)
+            {
+                if (!IsValidCoordinate(poi.Latitude, poi.Longitude))
+                    continue;
+
+                var sphericalMercator = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
+                var feature = new PointFeature(new MPoint(sphericalMercator.x, sphericalMercator.y));
+
+                feature["PoiId"] = poi.Id;
+                feature["Label"] = poi.Name;
+
+                bool isNearest = nearestPoiId.HasValue && poi.Id == nearestPoiId.Value;
+
+                feature.Styles.Add(new SymbolStyle
+                {
+                    SymbolType = SymbolType.Ellipse,
+                    Fill = isNearest
+                        ? new MapsuiBrush(new MapsuiColor(255, 215, 0))   // vàng nổi bật
+                        : new MapsuiBrush(MapsuiColor.Red),
+                    Outline = isNearest
+                        ? new MapsuiPen(MapsuiColor.Black, 3)
+                        : new MapsuiPen(MapsuiColor.White, 2),
+                    SymbolScale = isNearest ? 1.2 : 0.9
+                });
+
+                //feature.Styles.Add(new LabelStyle
+                //{
+                //    Text = isNearest ? $"★ {poi.Name}" : poi.Name,
+                //    Offset = new Offset(0, 20)
+                //});
+
+                features.Add(feature);
+            }
+
+            poiLayer = new MemoryLayer
+            {
+                Name = "POIs",
+                Features = features
+            };
+
+            mapControl.Map.Layers.Add(poiLayer);
+            mapControl.Refresh();
         }
 
         // Công dụng: vẽ vòng tròn geofence của từng POI trên bản đồ
@@ -918,46 +1004,77 @@ namespace FoodGuideApp
             if (poi == null)
                 return;
 
-            string description = GetPoiTextByLanguage(poi, currentLanguage);
-
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                poiNameLabel.Text = poi.Name;
-                poiDescriptionLabel.Text = string.IsNullOrWhiteSpace(description)
-                    ? "Không có mô tả"
-                    : description;
-
-                if (!string.IsNullOrWhiteSpace(poi.ImageUrl))
-                {
-                    try
-                    {
-                        poiImage.Source = ImageSource.FromUri(new Uri(poi.ImageUrl));
-                        poiImage.IsVisible = true;
-                    }
-                    catch
-                    {
-                        poiImage.Source = null;
-                        poiImage.IsVisible = false;
-                    }
-                }
-                else
-                {
-                    poiImage.Source = null;
-                    poiImage.IsVisible = false;
-                }
+                resultLabel.Text = $"Đang hiển thị thông tin POI: {poi.Name}";
             });
         }
-        
         // Xóa thông tin POI đang hiển thị trên giao diện (tên, mô tả, ảnh) khi không còn trong vùng geofence
         private void ClearPoiDetails()
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                poiNameLabel.Text = "Chưa có POI đang hiển thị";
-                poiDescriptionLabel.Text = "Mô tả POI sẽ hiển thị ở đây";
-                poiImage.Source = null;
-                poiImage.IsVisible = false;
+                //poiNameLabel.Text = "Chưa có POI đang hiển thị";
+                //poiDescriptionLabel.Text = "Mô tả POI sẽ hiển thị ở đây";
+                //poiImage.Source = null;
+                //poiImage.IsVisible = false;
             });
+        }
+        //chi tiết poi gần nhất
+        private async void OnViewNearestPoiClicked(object sender, EventArgs e)
+        {
+            if (nearestPoiCurrent == null)
+            {
+                await DisplayAlert("Thông báo", "Chưa xác định được POI gần nhất.", "OK");
+                return;
+            }
+
+            double distanceMeters = 0;
+
+            var currentLocation = await GetLocation();
+            if (currentLocation != null)
+            {
+                distanceMeters = SensorLocation.CalculateDistance(
+                    currentLocation,
+                    new SensorLocation(nearestPoiCurrent.Latitude, nearestPoiCurrent.Longitude),
+                    DistanceUnits.Kilometers) * 1000;
+            }
+
+            SavePoiInfoToPreferences(nearestPoiCurrent, distanceMeters);
+
+            await Shell.Current.GoToAsync("//poi");
+        }
+        //lưu POI hiện tại để tab POI đọc và hiển thị
+        private void SavePoiInfoToPreferences(Poi poi, double distanceMeters = 0)
+        {
+            if (poi == null) return;
+
+            string description = GetPoiTextByLanguage(poi, currentLanguage);
+
+            Preferences.Set("poi_name", poi.Name ?? "Chưa có POI");
+            Preferences.Set("poi_description", string.IsNullOrWhiteSpace(description) ? "Không có mô tả" : description);
+            Preferences.Set("poi_image_url", poi.ImageUrl ?? "");
+            Preferences.Set("poi_distance", distanceMeters.ToString("F1"));
+        }
+        //quet qr
+        private async void OnScanQrClicked(object sender, EventArgs e)
+        {
+            try
+            {
+                var cameraStatus = await Permissions.RequestAsync<Permissions.Camera>();
+
+                if (cameraStatus != PermissionStatus.Granted)
+                {
+                    await DisplayAlert("Lỗi", "Bạn chưa cấp quyền camera", "OK");
+                    return;
+                }
+
+                await Navigation.PushModalAsync(new QrScannerPage());
+            }
+            catch (Exception ex)
+            {
+                await DisplayAlert("Lỗi", $"Không mở được màn hình quét QR: {ex.Message}", "OK");
+            }
         }
     }
 }

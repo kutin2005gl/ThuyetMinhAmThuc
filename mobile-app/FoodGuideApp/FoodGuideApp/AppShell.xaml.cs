@@ -6,19 +6,31 @@ public partial class AppShell : Shell
     {
         InitializeComponent();
 
-        // Công dụng: lấy MainPage từ DI thay vì new thủ công
         var mainPage = serviceProvider.GetService<MainPage>();
 
-        Items.Add(new ShellContent
+        var tabBar = new TabBar();
+
+        tabBar.Items.Add(new ShellContent
         {
             Title = "Home",
+            Route = "home",
             Content = mainPage
         });
 
-        Items.Add(new ShellContent
+        tabBar.Items.Add(new ShellContent
+        {
+            Title = "POI",
+            Route = "poi",
+            Content = new PoiInfoPage()
+        });
+
+        tabBar.Items.Add(new ShellContent
         {
             Title = "Settings",
+            Route = "settings",
             Content = new SettingsPage()
         });
+
+        Items.Add(tabBar);
     }
 }

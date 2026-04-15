@@ -36,9 +36,20 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<MauiXaml Update="PoiDetailPage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="PoiInfoPage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
+		<MauiXaml Update="QrScannerPage.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</MauiXaml>
 		<MauiXaml Update="SettingsPage.xaml">
 			<Generator>MSBuild:Compile</Generator>
 		</MauiXaml>
 	</ItemGroup>
-
+	<ItemGroup>
+		<PackageReference Include="ZXing.Net.Maui.Controls" Version="0.6.0" />
+	</ItemGroup>
 </Project>

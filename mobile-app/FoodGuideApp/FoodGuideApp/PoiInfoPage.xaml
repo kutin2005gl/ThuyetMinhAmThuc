@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="FoodGuideApp.PoiInfoPage"
+             Title="POI">
+
+	<ScrollView>
+		<VerticalStackLayout Padding="20" Spacing="15">
+
+			<Label x:Name="poiNameLabel"
+                   Text="Chưa có POI"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="Black" />
+
+			<Image x:Name="poiImage"
+                   HeightRequest="220"
+                   Aspect="AspectFill"
+                   IsVisible="False" />
+
+			<Label x:Name="poiDistanceLabel"
+                   Text="Khoảng cách: --"
+                   FontSize="16"
+                   TextColor="Gray" />
+
+			<Label x:Name="poiDescriptionLabel"
+                   Text="Mô tả POI sẽ hiển thị ở đây"
+                   FontSize="18"
+                   LineBreakMode="WordWrap"
+                   TextColor="Black" />
+
+			<Label x:Name="audioStatusLabel"
+                   Text="Chưa phát audio"
+                   FontSize="16"
+                   TextColor="DarkBlue" />
+
+			<HorizontalStackLayout Spacing="12">
+				<Button Text="Nghe lại"
+                        Clicked="OnReplayClicked"
+                        HorizontalOptions="FillAndExpand" />
+
+				<Button Text="Dừng"
+                        Clicked="OnStopClicked"
+                        HorizontalOptions="FillAndExpand" />
+			</HorizontalStackLayout>
+
+		</VerticalStackLayout>
+	</ScrollView>
+</ContentPage>

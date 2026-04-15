@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using FoodGuideApp.Services;
+using ZXing.Net.Maui.Controls;
 
 namespace FoodGuideApp
 {
@@ -11,9 +12,11 @@ namespace FoodGuideApp
         {
             var builder = MauiApp.CreateBuilder();
             builder.Services.AddSingleton<AppShell>();
+
             builder
                 .UseMauiApp<App>()
                 .UseSkiaSharp()
+                .UseBarcodeReader()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -30,6 +33,7 @@ namespace FoodGuideApp
 #endif
 
             builder.Services.AddSingleton<MainPage>();
+            builder.Services.AddTransient<QrScannerPage>();
 
             return builder.Build();
         }

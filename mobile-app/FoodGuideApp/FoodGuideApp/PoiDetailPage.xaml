@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="FoodGuideApp.PoiDetailPage"
+             Title="Chi tiết POI">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
+
+            <Label x:Name="titleLabel"
+                   Text="Tên POI"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="Black" />
+
+            <Image x:Name="poiImage"
+                   HeightRequest="220"
+                   Aspect="AspectFill"
+                   IsVisible="False" />
+
+            <Label x:Name="distanceLabel"
+                   Text="Khoảng cách: --"
+                   FontSize="16"
+                   TextColor="Gray" />
+
+            <Label x:Name="descriptionLabel"
+                   Text="Mô tả POI"
+                   FontSize="18"
+                   LineBreakMode="WordWrap"
+                   TextColor="Black" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

@@ -21,38 +21,29 @@
 
             <Button Text="Dừng theo dõi"
                     Clicked="OnStopTrackingClicked" />
+            
+            <Button Text="Quét QR"
+                    Clicked="OnScanQrClicked" />
 
             <Label x:Name="locationLabel"
                    Text="Chưa có vị trí"
                    FontSize="20" />
 
             <mapsui:MapControl x:Name="mapControl"
-                               HeightRequest="400" />
+                   HeightRequest="400" />
+
+            <Button Text="Xem chi tiết POI gần nhất"
+                    Clicked="OnViewNearestPoiClicked" />
 
             <Label x:Name="resultLabel"
                    Text="Chưa tải POI"
                    FontSize="16" />
-
             <Label x:Name="geofenceLabel"
                    Text="Chưa vào vùng geofence"
                    FontSize="18"
                    TextColor="Red" />
 
-            <Label x:Name="poiNameLabel"
-                   Text="Chưa có POI đang hiển thị"
-                   FontSize="20"
-                   FontAttributes="Bold"
-                   TextColor="Black" />
-
-            <Image x:Name="poiImage"
-                   HeightRequest="220"
-                   Aspect="AspectFill"
-                   IsVisible="False" />
-
-            <Label x:Name="poiDescriptionLabel"
-                   Text="Mô tả POI sẽ hiển thị ở đây"
-                   FontSize="16"
-                   LineBreakMode="WordWrap" />
+          
 
         </VerticalStackLayout>
     </ScrollView>
