@@ -37,7 +37,8 @@ public class TtsController : ControllerBase
             request.PoiId,
             request.Text,
             request.Language,
-            fileName
+            fileName,
+            langConfig.VoiceName
         // Nếu AudioService của bạn chưa nhận tham số thứ 5 (voiceName), 
         // hãy tạm thời xóa dòng langConfig.VoiceName ở đây để build thành công.
         );

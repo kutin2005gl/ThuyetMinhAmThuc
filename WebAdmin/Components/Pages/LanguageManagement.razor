@@ -59,7 +59,7 @@
                                                 </div>
                                             </td>
                                             <td><span class="badge bg-light text-primary border px-2">@lang.Code.ToUpper()</span></td>
-                                            <td><code class="text-muted x-small">@lang.Voice</code></td>
+                                            <td><code class="text-muted x-small">@lang.VoiceName</code></td>
                                         </tr>
                                     }
                                 }
@@ -155,7 +155,7 @@
             // 1. Tải danh sách ngôn ngữ
             var dbLangs = await http.GetFromJsonAsync<List<SupportedLanguageDto>>("/api/Language");
             if (dbLangs != null) 
-                languages = dbLangs.Select(l => new LangInfo(l.Code, l.Name, l.Voice)).ToList();
+                languages = dbLangs.Select(l => new LangInfo(l.Code, l.Name, l.VoiceName)).ToList();
 
             // 2. Tải danh sách POI
             var pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
@@ -188,14 +188,14 @@
         _ => "border-success"
     };
 
-    public record LangInfo(string Code, string Name, string Voice);
+    public record LangInfo(string Code, string Name, string VoiceName);
     public class LangStat { public string Language { get; set; } = ""; public int Count { get; set; } }
     public class PoiDto { public int Id { get; set; } }
     public class SupportedLanguageDto {
         public int Id { get; set; }
         public string Code { get; set; } = "";
         public string Name { get; set; } = "";
-        public string Voice { get; set; } = "";
+        public string VoiceName { get; set; } = "";
     }
     public class StatsResponse {
         public int Total { get; set; }
