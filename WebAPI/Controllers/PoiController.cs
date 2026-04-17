@@ -115,6 +115,69 @@ public class PoiController : ControllerBase
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
         return Ok(new { imageUrl = $"{baseUrl}{poi.ImagePath}" });
     }
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] PoiUpdateDto dto)
+    {
+        // 1. Tìm POI trong Database
+        var poi = await _db.Pois.FindAsync(id);
+        if (poi == null) return NotFound("Không tìm thấy địa điểm");
+
+        // 2. Cập nhật các thông tin
+        poi.Name = dto.Name;
+        poi.Description = dto.Description;
+        poi.Latitude = dto.Latitude;
+        poi.Longitude = dto.Longitude;
+        poi.RadiusMeters = dto.RadiusMeters;
+
+        // 3. Lưu thay đổi
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!PoiExists(id)) return NotFound();
+            else throw;
+        }
+
+        return Ok(poi);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        // 1. Tìm POI kèm theo các bản dịch của nó
+        var poi = await _db.Pois
+            .Include(p => p.Translations) // Quan trọng: Load luôn các bản dịch để xóa cùng lúc
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (poi == null) return NotFound("Không tìm thấy địa điểm để xóa");
+
+        // 2. Xóa các bản dịch liên quan trước (nếu có)
+        if (poi.Translations != null && poi.Translations.Any())
+        {
+            _db.Translations.RemoveRange(poi.Translations);
+        }
+
+        // 3. Xóa file ảnh trên ổ cứng (để tránh rác server)
+        if (!string.IsNullOrEmpty(poi.ImagePath))
+        {
+            var filePath = Path.Combine(_env.WebRootPath, poi.ImagePath.TrimStart('/'));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+        }
+
+        // 4. Xóa POI
+        _db.Pois.Remove(poi);
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Đã xóa địa điểm và dữ liệu liên quan thành công" });
+    }
+
+    // Hàm hỗ trợ kiểm tra tồn tại
+    private bool PoiExists(int id) => _db.Pois.Any(e => e.Id == id);
 
     // DTO classes
     public record PoiCreateDto(
@@ -144,4 +207,13 @@ public class PoiController : ControllerBase
         public string Language { get; set; } = "";
         public string Text { get; set; } = "";
     }
+
+    public record PoiUpdateDto(
+        int Id,
+        string Name,
+        string Description,
+        double Latitude,
+        double Longitude,
+        double RadiusMeters
+    );
 }
