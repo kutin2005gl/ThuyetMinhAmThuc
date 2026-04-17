@@ -2,48 +2,49 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.PoiInfoPage"
-             Title="POI">
+             Title="POI"
+             BackgroundColor="#F5F7FB">
 
-	<ScrollView>
-		<VerticalStackLayout Padding="20" Spacing="15">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="15">
 
-			<Label x:Name="poiNameLabel"
+            <Label x:Name="poiNameLabel"
                    Text="Chưa có POI"
                    FontSize="28"
                    FontAttributes="Bold"
                    TextColor="Black" />
 
-			<Image x:Name="poiImage"
+            <Image x:Name="poiImage"
                    HeightRequest="220"
                    Aspect="AspectFill"
                    IsVisible="False" />
 
-			<Label x:Name="poiDistanceLabel"
+            <Label x:Name="poiDistanceLabel"
                    Text="Khoảng cách: --"
                    FontSize="16"
                    TextColor="Gray" />
 
-			<Label x:Name="poiDescriptionLabel"
+            <Label x:Name="poiDescriptionLabel"
                    Text="Mô tả POI sẽ hiển thị ở đây"
                    FontSize="18"
                    LineBreakMode="WordWrap"
                    TextColor="Black" />
 
-			<Label x:Name="audioStatusLabel"
+            <Label x:Name="audioStatusLabel"
                    Text="Chưa phát audio"
                    FontSize="16"
                    TextColor="DarkBlue" />
 
-			<HorizontalStackLayout Spacing="12">
-				<Button Text="Nghe lại"
+            <HorizontalStackLayout Spacing="12">
+                <Button x:Name="replayButton"
                         Clicked="OnReplayClicked"
                         HorizontalOptions="FillAndExpand" />
 
-				<Button Text="Dừng"
+                <Button x:Name="stopButton"
                         Clicked="OnStopClicked"
                         HorizontalOptions="FillAndExpand" />
-			</HorizontalStackLayout>
+            </HorizontalStackLayout>
 
-		</VerticalStackLayout>
-	</ScrollView>
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>

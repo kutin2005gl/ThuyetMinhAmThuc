@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="FoodGuideApp.TourPage"
+             Title="Tours">
+
+    <Grid RowDefinitions="Auto,*" Padding="15">
+
+        <Label x:Name="pageTitleLabel"
+               FontSize="24"
+               FontAttributes="Bold"
+               TextColor="Black" />
+
+        <CollectionView x:Name="tourCollectionView"
+                        Grid.Row="1"
+                        Margin="0,15,0,0"
+                        SelectionMode="Single"
+                        SelectionChanged="OnTourSelected">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Stroke="#DDDDDD"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 12"
+                            Padding="15"
+                            Margin="0,0,0,12">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="{Binding DisplayName}"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="Black" />
+
+                            <Label Text="{Binding DisplayDescription}"
+                                   FontSize="14"
+                                   TextColor="Gray" />
+
+                            <Label Text="{Binding DisplayPoiCount}"
+                                   FontSize="13"
+                                   TextColor="DarkSlateGray" />
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

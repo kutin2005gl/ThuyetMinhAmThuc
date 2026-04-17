@@ -75,6 +75,7 @@ namespace FoodGuideApp
             audioManager.Start();
 
             LoadAppSettings();
+
             _ = InitializeData();
         }
 
@@ -161,12 +162,24 @@ namespace FoodGuideApp
                 }
 
                 Debug.WriteLine($"Đã tải {geoPois.Count} POI hợp lệ");
-                resultLabel.Text = $"Đã tải {geoPois.Count} POI";
+                resultLabel.Text = LanguageManager.Get(
+                    $"Đã tải {geoPois.Count} POI",
+                    $"Loaded {geoPois.Count} POIs",
+                    $"已加载 {geoPois.Count} 个 POI",
+                    $"{geoPois.Count}개의 POI를 불러왔습니다",
+                    $"{geoPois.Count} 件のPOIを読み込みました",
+                    $"{geoPois.Count} POI chargés");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine("Lỗi load POI: " + ex);
-                resultLabel.Text = $"Lỗi load POI: {ex.Message}";
+                resultLabel.Text = LanguageManager.Get(
+                     $"Lỗi tải POI: {ex.Message}",
+                     $"Error loading POIs: {ex.Message}",
+                     $"加载 POI 出错：{ex.Message}",
+                     $"POI 로딩 오류: {ex.Message}",
+                     $"POI 読み込みエラー: {ex.Message}",
+                     $"Erreur de chargement des POI : {ex.Message}");
             }
         }
 
@@ -182,9 +195,29 @@ namespace FoodGuideApp
                 return;
             }
 
-            resultLabel.Text = "Đang bắt đầu theo dõi...";
-            locationLabel.Text = "Đang lấy vị trí...";
-            geofenceLabel.Text = "Đang kiểm tra geofence...";
+            resultLabel.Text = LanguageManager.Get(
+                "Đang bắt đầu theo dõi...",
+                "Starting tracking...",
+                "开始追踪...",
+                "추적 시작 중...",
+                "追跡開始中...",
+                "Démarrage du suivi...");
+
+            locationLabel.Text = LanguageManager.Get(
+                "Đang lấy vị trí...",
+                "Getting location...",
+                "正在获取位置...",
+                "위치 가져오는 중...",
+                "位置を取得中...",
+                "Obtention de la position...");
+
+            geofenceLabel.Text = LanguageManager.Get(
+                "Đang kiểm tra geofence...",
+                "Checking geofence...",
+                "正在检查地理围栏...",
+                "지오펜스 확인 중...",
+                "ジオフェンス確認中...",
+                "Vérification de la zone...");
             geofenceLabel.TextColor = Colors.Orange;
 
             // Reset trạng thái tracking
@@ -215,9 +248,21 @@ namespace FoodGuideApp
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                geofenceLabel.Text = "Đã dừng theo dõi";
-                geofenceLabel.TextColor = Colors.Red;
-                resultLabel.Text = "Đã dừng theo dõi";
+                geofenceLabel.Text = LanguageManager.Get(
+                    "Đã dừng theo dõi",
+                    "Tracking stopped",
+                    "已停止追踪",
+                    "추적 중지됨",
+                    "追跡停止",
+                    "Suivi arrêté");
+
+                resultLabel.Text = LanguageManager.Get(
+                    "Đã dừng theo dõi",
+                    "Tracking stopped",
+                    "已停止追踪",
+                    "추적 중지됨",
+                    "追跡停止",
+                    "Suivi arrêté");
             });
         }
 
@@ -243,11 +288,25 @@ namespace FoodGuideApp
                         MainThread.BeginInvokeOnMainThread(() =>
                         {
                             locationLabel.Text =
-                                $"Lat: {location.Latitude:F6}\n" +
-                                $"Lng: {location.Longitude:F6}" +
-                                (string.IsNullOrEmpty(nearbyName) ? "" : $"\nGần quầy: {nearbyName}");
+                             $"Lat: {location.Latitude:F6}\n" +
+                             $"Lng: {location.Longitude:F6}" +
+                             (string.IsNullOrEmpty(nearbyName)
+                                 ? ""
+                                 : LanguageManager.Get(
+                                     $"\nGần quầy: {nearbyName}",
+                                     $"\nNearby stall: {nearbyName}",
+                                     $"\n附近摊位：{nearbyName}",
+                                     $"\n근처 매장: {nearbyName}",
+                                     $"\n近くの売店: {nearbyName}",
+                                     $"\nStand proche : {nearbyName}"));
 
-                            resultLabel.Text = "Đang theo dõi vị trí...";
+                            resultLabel.Text = LanguageManager.Get(
+                                "Đang theo dõi vị trí...",
+                                "Tracking location...",
+                                "正在追踪位置...",
+                                "위치 추적 중...",
+                                "位置を追跡中...",
+                                "Suivi de la position...");
                         });
 
                         if (geoPois.Count > 0)
@@ -308,7 +367,13 @@ namespace FoodGuideApp
                         {
                             MainThread.BeginInvokeOnMainThread(() =>
                             {
-                                resultLabel.Text = "Tín hiệu GPS chưa ổn định...";
+                                resultLabel.Text = LanguageManager.Get(
+                                    "Tín hiệu GPS chưa ổn định...",
+                                    "GPS signal is not stable yet...",
+                                    "GPS 信号尚不稳定...",
+                                    "GPS 신호가 아직 불안정합니다...",
+                                    "GPS信号がまだ安定していません...",
+                                    "Le signal GPS n'est pas encore stable...");
                             });
                         }
                     }
@@ -325,7 +390,13 @@ namespace FoodGuideApp
 
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
-                        resultLabel.Text = $"Lỗi tracking: {ex.Message}";
+                        resultLabel.Text = LanguageManager.Get(
+                             $"Lỗi theo dõi vị trí: {ex.Message}",
+                             $"Tracking error: {ex.Message}",
+                             $"追踪错误：{ex.Message}",
+                             $"추적 오류: {ex.Message}",
+                             $"追跡エラー: {ex.Message}",
+                             $"Erreur de suivi : {ex.Message}");
                     });
 
                     break;
@@ -417,14 +488,26 @@ namespace FoodGuideApp
             // 2. Cập nhật label geofence trên UI thread
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                if (bestPoi != null)    
+                if (bestPoi != null)
                 {
-                    geofenceLabel.Text = $"Đã vào vùng geofence: {bestPoi.Name} ({bestDistance:F1}m)";
+                    geofenceLabel.Text = LanguageManager.Get(
+                        $"Đã vào vùng geofence: {bestPoi.Name} ({bestDistance:F1}m)",
+                        $"Entered geofence: {bestPoi.Name} ({bestDistance:F1}m)",
+                        $"已进入地理围栏：{bestPoi.Name} ({bestDistance:F1}m)",
+                        $"지오펜스 진입: {bestPoi.Name} ({bestDistance:F1}m)",
+                        $"ジオフェンスに入りました: {bestPoi.Name} ({bestDistance:F1}m)",
+                        $"Entrée dans la zone : {bestPoi.Name} ({bestDistance:F1}m)");
                     geofenceLabel.TextColor = Colors.Green;
                 }
                 else
                 {
-                    geofenceLabel.Text = "Chưa vào vùng geofence";
+                    geofenceLabel.Text = LanguageManager.Get(
+                        "Chưa vào vùng geofence",
+                        "Not inside geofence",
+                        "尚未进入地理围栏",
+                        "지오펜스 영역 밖",
+                        "ジオフェンス外です",
+                        "Hors de la zone geofence");
                     geofenceLabel.TextColor = Colors.Red;
                 }
             });
@@ -479,7 +562,13 @@ namespace FoodGuideApp
                     {
                         MainThread.BeginInvokeOnMainThread(() =>
                         {
-                            resultLabel.Text = $"⚠ Không có nội dung thuyết minh cho: {bestPoi.Name}";
+                            resultLabel.Text = LanguageManager.Get(
+                            $"⚠ Không có nội dung thuyết minh cho: {bestPoi.Name}",
+                            $"⚠ No narration content for: {bestPoi.Name}",
+                            $"⚠ 没有讲解内容：{bestPoi.Name}",
+                            $"⚠ 안내 음성이 없습니다: {bestPoi.Name}",
+                            $"⚠ 説明音声がありません: {bestPoi.Name}",
+                            $"⚠ Aucun contenu audio pour : {bestPoi.Name}");
                         });
 
                         Debug.WriteLine($"[TTS SKIP] {bestPoi.Name} không có text cho ngôn ngữ {currentLanguage}");
@@ -488,7 +577,13 @@ namespace FoodGuideApp
 
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
-                        resultLabel.Text = $"🔊 Đang thuyết minh: {bestPoi.Name} ({bestDistance:F0}m)";
+                        resultLabel.Text = LanguageManager.Get(
+                        $"🔊 Đang thuyết minh: {bestPoi.Name} ({bestDistance:F0}m)",
+                        $"🔊 Narrating: {bestPoi.Name} ({bestDistance:F0}m)",
+                        $"🔊 正在讲解：{bestPoi.Name} ({bestDistance:F0}m)",
+                        $"🔊 안내 중: {bestPoi.Name} ({bestDistance:F0}m)",
+                        $"🔊 音声案内中: {bestPoi.Name} ({bestDistance:F0}m)",
+                        $"🔊 Lecture audio : {bestPoi.Name} ({bestDistance:F0}m)");
                     });
 
                     try
@@ -510,7 +605,13 @@ namespace FoodGuideApp
 
                         MainThread.BeginInvokeOnMainThread(() =>
                         {
-                            resultLabel.Text = $"❌ Lỗi thuyết minh: {bestPoi.Name}";
+                            resultLabel.Text = LanguageManager.Get(
+                        $"❌ Lỗi thuyết minh: {bestPoi.Name}",
+                        $"❌ Narration error: {bestPoi.Name}",
+                        $"❌ 讲解错误：{bestPoi.Name}",
+                        $"❌ 안내 오류: {bestPoi.Name}",
+                        $"❌ 音声案内エラー: {bestPoi.Name}",
+                        $"❌ Erreur de narration : {bestPoi.Name}");
                         });
                     }
                 
@@ -586,7 +687,13 @@ namespace FoodGuideApp
 
                         MainThread.BeginInvokeOnMainThread(() =>
                         {
-                            resultLabel.Text = $"Bạn đang đến gần: {poi.Name} ({bestDistance:F1}m)";
+                            resultLabel.Text = LanguageManager.Get(
+                                $"Bạn đang đến gần: {poi.Name} ({bestDistance:F1}m)",
+                                $"You are approaching: {poi.Name} ({bestDistance:F1}m)",
+                                $"您正在接近：{poi.Name} ({bestDistance:F1}m)",
+                                $"가까워지고 있습니다: {poi.Name} ({bestDistance:F1}m)",
+                                $"近づいています: {poi.Name} ({bestDistance:F1}m)",
+                                $"Vous approchez de : {poi.Name} ({bestDistance:F1}m)");
                         });
                     }
                 }
@@ -601,7 +708,13 @@ namespace FoodGuideApp
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    resultLabel.Text = "Đang theo dõi vị trí...";
+                    resultLabel.Text = LanguageManager.Get(
+                        "Đang theo dõi vị trí...",
+                        "Tracking location...",
+                        "正在追踪位置...",
+                        "위치 추적 중...",
+                        "位置を追跡中...",
+                        "Suivi de la position...");
                 });
             }
         }
@@ -744,7 +857,13 @@ namespace FoodGuideApp
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                resultLabel.Text = $"Đã hiển thị {features.Count} POI trên bản đồ";
+                resultLabel.Text = LanguageManager.Get(
+                    $"Đã hiển thị {features.Count} POI trên bản đồ",
+                    $"Displayed {features.Count} POIs on the map",
+                    $"地图上已显示 {features.Count} 个 POI",
+                    $"지도에 {features.Count}개의 POI를 표시했습니다",
+                    $"地図に {features.Count} 件のPOIを表示しました",
+                    $"{features.Count} POI affichés sur la carte");
             });
         }
         //highlight POI gan nhat
@@ -981,8 +1100,17 @@ namespace FoodGuideApp
         protected override void OnAppearing()
         {
             base.OnAppearing();
+
             LoadAppSettings();
-            resultLabel.Text = GetLanguageMessage();
+            ApplyLanguageToUI();
+
+            int poiId = Preferences.Get("highlight_poi_id", -1);
+
+            if (poiId != -1)
+            {
+                HighlightPoiById(poiId);
+                Preferences.Remove("highlight_poi_id");
+            }
         }
         // Công dụng: kiểm tra latitude/longitude có nằm trong khoảng hợp lệ không
         private bool IsValidCoordinate(double latitude, double longitude)
@@ -1006,7 +1134,13 @@ namespace FoodGuideApp
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                resultLabel.Text = $"Đang hiển thị thông tin POI: {poi.Name}";
+                resultLabel.Text = LanguageManager.Get(
+                    $"Đang hiển thị thông tin POI: {poi.Name}",
+                    $"Showing POI details: {poi.Name}",
+                    $"正在显示 POI 信息：{poi.Name}",
+                    $"POI 정보 표시 중: {poi.Name}",
+                    $"POI情報を表示中: {poi.Name}",
+                    $"Affichage des détails du POI : {poi.Name}");
             });
         }
         // Xóa thông tin POI đang hiển thị trên giao diện (tên, mô tả, ảnh) khi không còn trong vùng geofence
@@ -1025,7 +1159,16 @@ namespace FoodGuideApp
         {
             if (nearestPoiCurrent == null)
             {
-                await DisplayAlert("Thông báo", "Chưa xác định được POI gần nhất.", "OK");
+                await DisplayAlert(
+                    LanguageManager.Get("Thông báo", "Notice", "通知", "알림", "お知らせ", "Notification"),
+                    LanguageManager.Get(
+                        "Chưa xác định được POI gần nhất.",
+                        "Nearest POI has not been determined yet.",
+                        "尚未确定最近的 POI。",
+                        "가장 가까운 POI가 아직 확인되지 않았습니다.",
+                        "最寄りのPOIがまだ特定されていません。",
+                        "Le POI le plus proche n'a pas encore été déterminé."),
+                    "OK");
                 return;
             }
 
@@ -1042,7 +1185,8 @@ namespace FoodGuideApp
 
             SavePoiInfoToPreferences(nearestPoiCurrent, distanceMeters);
 
-            await Shell.Current.GoToAsync("//poi");
+            isManualViewingPoi = true;
+            await Navigation.PushAsync(new PoiInfoPage());
         }
         //lưu POI hiện tại để tab POI đọc và hiển thị
         private void SavePoiInfoToPreferences(Poi poi, double distanceMeters = 0)
@@ -1051,8 +1195,27 @@ namespace FoodGuideApp
 
             string description = GetPoiTextByLanguage(poi, currentLanguage);
 
-            Preferences.Set("poi_name", poi.Name ?? "Chưa có POI");
-            Preferences.Set("poi_description", string.IsNullOrWhiteSpace(description) ? "Không có mô tả" : description);
+            Preferences.Set(
+                 "poi_name",
+                 poi.Name ?? LanguageManager.Get(
+                     "Chưa có POI",
+                     "No POI",
+                     "暂无 POI",
+                     "POI 없음",
+                     "POIなし",
+                     "Aucun POI"));
+
+            Preferences.Set(
+                "poi_description",
+                string.IsNullOrWhiteSpace(description)
+                    ? LanguageManager.Get(
+                        "Không có mô tả",
+                        "No description",
+                        "没有描述",
+                        "설명이 없습니다",
+                        "説明がありません",
+                        "Aucune description")
+                    : description);
             Preferences.Set("poi_image_url", poi.ImageUrl ?? "");
             Preferences.Set("poi_distance", distanceMeters.ToString("F1"));
         }
@@ -1065,7 +1228,16 @@ namespace FoodGuideApp
 
                 if (cameraStatus != PermissionStatus.Granted)
                 {
-                    await DisplayAlert("Lỗi", "Bạn chưa cấp quyền camera", "OK");
+                    await DisplayAlert(
+                        LanguageManager.Get("Lỗi", "Error", "错误", "오류", "エラー", "Erreur"),
+                        LanguageManager.Get(
+                            "Bạn chưa cấp quyền camera",
+                            "Camera permission has not been granted",
+                            "您尚未授予相机权限",
+                            "카메라 권한이 허용되지 않았습니다",
+                            "カメラ権限が許可されていません",
+                            "L'autorisation de la caméra n'a pas été accordée"),
+                        "OK");
                     return;
                 }
 
@@ -1073,8 +1245,125 @@ namespace FoodGuideApp
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Lỗi", $"Không mở được màn hình quét QR: {ex.Message}", "OK");
+                await DisplayAlert(
+                    LanguageManager.Get("Lỗi", "Error", "错误", "오류", "エラー", "Erreur"),
+                    LanguageManager.Get(
+                        $"Không mở được màn hình quét QR: {ex.Message}",
+                        $"Cannot open QR scanner screen: {ex.Message}",
+                        $"无法打开二维码扫描界面：{ex.Message}",
+                        $"QR 스캔 화면을 열 수 없습니다: {ex.Message}",
+                        $"QRスキャン画面を開けません: {ex.Message}",
+                        $"Impossible d'ouvrir l'écran de scan QR : {ex.Message}"),
+                    "OK");
             }
         }
+        private void HighlightPoiById(int poiId)
+        {
+            var poi = geoPois.FirstOrDefault(p => p.Id == poiId);
+            if (poi == null)
+                return;
+
+            Debug.WriteLine($"[HIGHLIGHT] {poi.Name}");
+
+            // 🔥 Gán lại POI đang chọn thành nearest
+            nearestPoiId = poi.Id;
+            nearestPoiCurrent = poi;
+
+            // 🔥 Gọi lại hàm highlight sẵn có
+            HighlightNearestPoi();
+
+            // 🔥 Zoom map tới POI
+            var point = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
+            mapControl.Map.Navigator.CenterOn(point.ToMPoint());
+            mapControl.Map.Navigator.ZoomTo(6);
+
+            mapControl.Refresh();
+        }
+        private void ApplyLanguageToUI()
+        {
+            Title = LanguageManager.Get("Trang chủ", "Home", "主页", "홈", "ホーム", "Accueil");
+
+            appTitleLabel.Text = LanguageManager.Get(
+                "HỆ THỐNG THUYẾT MINH ẨM THỰC",
+                "FOOD AUDIO GUIDE SYSTEM",
+                "美食语音导览系统",
+                "음식 음성 안내 시스템",
+                "グルメ音声ガイドシステム",
+                "SYSTÈME DE GUIDE AUDIO CULINAIRE");
+
+            subTitleLabel.Text = LanguageManager.Get(
+                "PoC GPS Tracking",
+                "PoC GPS Tracking",
+                "PoC GPS 定位跟踪",
+                "PoC GPS 추적",
+                "PoC GPS追跡",
+                "Suivi GPS PoC");
+
+            startTrackingButton.Text = LanguageManager.Get(
+                "Bắt đầu theo dõi",
+                "Start tracking",
+                "开始追踪",
+                "추적 시작",
+                "追跡開始",
+                "Démarrer le suivi");
+
+            stopTrackingButton.Text = LanguageManager.Get(
+                "Dừng theo dõi",
+                "Stop tracking",
+                "停止追踪",
+                "추적 중지",
+                "追跡停止",
+                "Arrêter le suivi");
+
+            scanQrButton.Text = LanguageManager.Get(
+                "Quét QR",
+                "Scan QR",
+                "扫描二维码",
+                "QR 스캔",
+                "QRをスキャン",
+                "Scanner le QR");
+
+            viewNearestPoiButton.Text = LanguageManager.Get(
+                "Xem chi tiết POI gần nhất",
+                "View nearest POI details",
+                "查看最近兴趣点详情",
+                "가장 가까운 POI 상세 보기",
+                "最寄りPOIの詳細を見る",
+                "Voir le POI le plus proche");
+
+            if (string.IsNullOrWhiteSpace(locationLabel.Text) || locationLabel.Text == "Chưa có vị trí")
+            {
+                locationLabel.Text = LanguageManager.Get(
+                    "Chưa có vị trí",
+                    "No location yet",
+                    "暂无位置",
+                    "위치 정보 없음",
+                    "位置情報がありません",
+                    "Aucune position");
+            }
+
+            if (string.IsNullOrWhiteSpace(resultLabel.Text) || resultLabel.Text == "Chưa tải POI")
+            {
+                resultLabel.Text = LanguageManager.Get(
+                    "Chưa tải POI",
+                    "POIs not loaded",
+                    "尚未加载 POI",
+                    "POI가 아직 로드되지 않음",
+                    "POIはまだ読み込まれていません",
+                    "POI non chargés");
+            }
+
+            if (string.IsNullOrWhiteSpace(geofenceLabel.Text) || geofenceLabel.Text == "Chưa vào vùng geofence")
+            {
+                geofenceLabel.Text = LanguageManager.Get(
+                    "Chưa vào vùng geofence",
+                    "Not inside geofence",
+                    "尚未进入地理围栏",
+                    "지오펜스 영역 밖",
+                    "ジオフェンス外です",
+                    "Hors de la zone geofence");
+            }
+        }
+
     }
 }
