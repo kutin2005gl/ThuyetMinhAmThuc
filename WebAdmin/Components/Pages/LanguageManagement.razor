@@ -102,7 +102,9 @@
                     {
                         @foreach (var stat in stats)
                         {
-                            var percent = totalPois > 0 ? (stat.Count * 100 / totalPois) : 0;
+                            var rawPercent = totalPois > 0 ? (stat.Count * 100 / totalPois) : 0;
+                            var percent = rawPercent > 100 ? 100 : rawPercent;
+                            var displayCount = stat.Count > totalPois ? totalPois : stat.Count;
                             <div class="mb-4 bg-white p-3 rounded-3 shadow-sm border-start border-4 @GetBorderColor(percent)">
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <div>
@@ -150,25 +152,46 @@
         
         var http = HttpFactory.CreateClient("WebAPI");
         errorMessage = null;
-
+        
         try {
-            // 1. Tải danh sách ngôn ngữ
+            // 1. Tải danh sách ngôn ngữ (Hệ thống dùng chung nên giữ nguyên)
             var dbLangs = await http.GetFromJsonAsync<List<SupportedLanguageDto>>("/api/Language");
             if (dbLangs != null) 
-                languages = dbLangs.Select(l => new LangInfo(l.Code, l.Name, l.VoiceName)).ToList();
-
-            // 2. Tải danh sách POI
-            var pois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-            totalPois = pois?.Count ?? 0;
-
+            languages = dbLangs.Select(l => new LangInfo(l.Code, l.Name, l.VoiceName)).ToList();
+            
+            // 2. Tải danh sách POI và PHÂN QUYỀN
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            
+            if (Session.IsAdmin) {
+                totalPois = allPois?.Count ?? 0; 
+            } else {
+                // Staff chỉ tính 1 địa điểm duy nhất của mình
+                totalPois = allPois?.Any(p => p.Id == Session.PoiId) == true ? 1 : 0; 
+            }
+            
             // 3. Tải thống kê
-            var result = await http.GetFromJsonAsync<StatsResponse>("/api/Translation/stats");
-            stats = result?.ByLanguage ?? new();
+            var result = await http.GetFromJsonAsync<StatsResponse>($"/api/Translation/stats{(Session.IsAdmin ? "" : $"?poiId={Session.PoiId}")}");
+            var tempStats = result?.ByLanguage ?? new List<LangStat>();
+
+            if (Session.IsAdmin)
+            {
+                stats = tempStats;
+            }
+            else
+            {
+                // STAFF: Ép dữ liệu stat.Count không bao giờ vượt quá 1 (totalPois)
+                // // Nếu stat.Count > 0 (nghĩa là quầy này đã có bản dịch), ta gán nó bằng 1.
+                // // Nếu stat.Count = 0 (chưa dịch), giữ nguyên là 0.
+                stats = tempStats.Select(s => new LangStat 
+                    { 
+                        Language = s.Language, 
+                        Count = s.Count > 0 ? 1 : 0 
+                    }).ToList();
+            }
         }
+        
         catch (Exception ex) {
             errorMessage = "❌ Lỗi kết nối: " + ex.Message;
-            if (languages == null) languages = new();
-            if (stats == null) stats = new();
         }
     }
 
