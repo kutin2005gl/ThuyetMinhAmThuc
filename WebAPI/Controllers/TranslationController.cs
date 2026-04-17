@@ -41,14 +41,26 @@ public class TranslationController : ControllerBase
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats()
     {
-        var byLanguage = await _db.Translations
+        // 1. Lấy tất cả bản dịch ra memory trước
+        var allTranslations = await _db.Translations.ToListAsync();
+
+        // 2. Lấy tổng số POI hiện có để tính mẫu số (tổng số cần có)
+        var totalPois = await _db.Pois.CountAsync();
+
+        // 3. Nhóm và đếm những bản ghi THỰC SỰ có file audio
+        var byLanguage = allTranslations
             .GroupBy(t => t.Language)
-            .Select(g => new { Language = g.Key, Count = g.Count() })
-            .ToListAsync();
+            .Select(g => new {
+                Language = g.Key,
+                // Chỉ đếm những POI đã có file vật lý trên server
+                Count = g.Count(t => System.IO.File.Exists(Path.Combine("wwwroot/audio", $"tts_{t.PoiId}_{t.Language}.mp3"))),
+                TotalRequired = totalPois // Gửi thêm tổng số POI để Frontend tính %
+            })
+            .ToList();
 
         return Ok(new
         {
-            Total = byLanguage.Sum(x => x.Count),
+            TotalCompleted = byLanguage.Sum(x => x.Count),
             ByLanguage = byLanguage
         });
     }
