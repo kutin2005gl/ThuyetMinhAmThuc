@@ -1,22 +1,9 @@
 using FoodGuideApp.Models;
 using FoodGuideApp.Services;
-using Mapsui;
-using Mapsui.Extensions;
-using Mapsui.Features;
-using Mapsui.Layers;
-using Mapsui.Nts;
-using Mapsui.Projections;
-using Mapsui.Styles;
-using Mapsui.Tiling;
-using Mapsui.UI.Maui;
 using Microsoft.Maui.Devices.Sensors;
 using Microsoft.Maui.Media;
 using System.Diagnostics;
 using System.Text.Json;
-using MapsuiBrush = Mapsui.Styles.Brush;
-using MapsuiColor = Mapsui.Styles.Color;
-using MapsuiPen = Mapsui.Styles.Pen;
-using NtsPoint = NetTopologySuite.Geometries.Point;
 using SensorLocation = Microsoft.Maui.Devices.Sensors.Location;
 
 namespace FoodGuideApp
@@ -35,8 +22,7 @@ namespace FoodGuideApp
         // HttpClient dùng để gọi API
         private readonly HttpClient httpClient = new HttpClient();
 
-        // Layer marker POI trên bản đồ
-        private MemoryLayer? poiLayer;
+        private bool isMapReady = false;
         private Poi? nearestPoiCurrent = null;
 
         // Thời điểm check POI gần nhất để tránh spam
@@ -61,6 +47,94 @@ namespace FoodGuideApp
         private readonly AudioQueueManager audioManager;
         private int? nearestPoiId = null;
         private bool isManualViewingPoi = false;
+        private const string LeafletHtmlContent = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let map;
+    let userMarker = null;
+    let poiLayer = L.layerGroup();
+    let geofenceLayer = L.layerGroup();
+
+    function initMap() {
+      if (map) return;
+      map = L.map('map').setView([16.0471, 108.2068], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+      poiLayer.addTo(map);
+      geofenceLayer.addTo(map);
+    }
+
+    function setView(lat, lng, zoom) {
+      if (!map) return;
+      map.setView([lat, lng], zoom ?? 17);
+    }
+
+    function setUserLocation(lat, lng) {
+      if (!map) return;
+      const icon = L.circleMarker([lat, lng], {
+        radius: 8,
+        color: '#ffffff',
+        weight: 2,
+        fillColor: '#0078ff',
+        fillOpacity: 1
+      });
+
+      if (userMarker) {
+        userMarker.setLatLng([lat, lng]);
+      } else {
+        userMarker = icon.addTo(map);
+      }
+    }
+
+    function renderPois(poisJson) {
+      if (!map) return;
+      poiLayer.clearLayers();
+      const pois = JSON.parse(poisJson);
+
+      pois.forEach(p => {
+        const marker = L.circleMarker([p.lat, p.lng], {
+          radius: p.isNearest ? 10 : 8,
+          color: p.isNearest ? '#000000' : '#ffffff',
+          weight: p.isNearest ? 3 : 2,
+          fillColor: p.isNearest ? '#ffd700' : '#ff0000',
+          fillOpacity: 1
+        });
+        marker.bindPopup(p.name);
+        marker.addTo(poiLayer);
+      });
+    }
+
+    function renderGeofences(poisJson) {
+      if (!map) return;
+      geofenceLayer.clearLayers();
+      const pois = JSON.parse(poisJson);
+      pois.forEach(p => {
+        L.circle([p.lat, p.lng], {
+          radius: Math.max(p.radius, 80),
+          color: 'rgba(255,0,0,0.9)',
+          fillColor: 'rgba(255,0,0,0.3)',
+          fillOpacity: 0.3,
+          weight: 2
+        }).addTo(geofenceLayer);
+      });
+    }
+  </script>
+</body>
+</html>
+""";
         public MainPage(IAudioFocusService audioFocusService)
         {
             InitializeComponent();
@@ -68,9 +142,10 @@ namespace FoodGuideApp
             // Công dụng: khởi tạo bộ quản lý audio
             // và nhận service xử lý audio focus từ hệ thống.
             audioManager = new AudioQueueManager(audioFocusService);
-
-            mapControl.Map = new Mapsui.Map();
-            mapControl.Map.Layers.Add(OpenStreetMap.CreateTileLayer());
+            mapWebView.Source = new HtmlWebViewSource
+            {
+                Html = LeafletHtmlContent
+            };
 
             audioManager.Start();
 
@@ -90,8 +165,8 @@ namespace FoodGuideApp
         {
             await LoadPois();
             InitializePoiStates();
-            ShowPoisOnMap();
-            DrawGeofenceCircles();
+            await ShowPoisOnMap();
+            await DrawGeofenceCircles();
         }
 
         // Công dụng: tạo state runtime cho từng POI để quản lý near/inside/cooldown
@@ -333,7 +408,7 @@ namespace FoodGuideApp
 
                                 MainThread.BeginInvokeOnMainThread(() =>
                                 {
-                                    HighlightNearestPoi();
+                                    _ = HighlightNearestPoi();
                                 });
                             }
                         }
@@ -353,8 +428,8 @@ namespace FoodGuideApp
 
                             MainThread.BeginInvokeOnMainThread(() =>
                             {
-                                MoveMapToLocation(location.Latitude, location.Longitude);
-                                ShowUserLocation(location.Latitude, location.Longitude);
+                                _ = MoveMapToLocation(location.Latitude, location.Longitude);
+                                _ = ShowUserLocation(location.Latitude, location.Longitude);
                             });
                         }
                     }
@@ -752,216 +827,86 @@ namespace FoodGuideApp
             return "";
         }
 
-        // Công dụng: di chuyển tâm bản đồ theo vị trí hiện tại của người dùng
-        // Công dụng: đưa map tới vị trí hiện tại và zoom gần kiểu street-level
-        private void MoveMapToLocation(double latitude, double longitude)
+        private void OnMapWebViewNavigated(object sender, WebNavigatedEventArgs e)
         {
-            if (mapControl.Map == null) return;
-
-            var point = SphericalMercator.FromLonLat(longitude, latitude);
-
-            mapControl.Map.Navigator.CenterOn(point.ToMPoint());
-            mapControl.Map.Navigator.ZoomTo(6);   // số càng nhỏ thì càng zoom gần
-            mapControl.Refresh();
+            isMapReady = true;
+            _ = EvaluateMapScriptAsync("initMap();");
+            _ = RenderMapDataAsync();
         }
+
+        // Công dụng: di chuyển tâm bản đồ theo vị trí hiện tại của người dùng
+        private async Task MoveMapToLocation(double latitude, double longitude)
+            => await EvaluateMapScriptAsync($"setView({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 17);");
 
         // Công dụng: hiển thị marker vị trí hiện tại của người dùng trên bản đồ
-        private void ShowUserLocation(double latitude, double longitude)
-        {
-            if (mapControl.Map == null) return;
-
-            var point = SphericalMercator.FromLonLat(longitude, latitude);
-
-            var feature = new PointFeature(point.ToMPoint());
-
-            feature.Styles.Add(new SymbolStyle
-{
-    SymbolType = SymbolType.Ellipse,
-    Fill = new MapsuiBrush(new MapsuiColor(0, 120, 255)),
-    Outline = new MapsuiPen(new MapsuiColor(255, 255, 255), 2),
-    SymbolScale = 0.6
-});
-
-            var layer = new MemoryLayer
-            {
-                Name = "user",
-                Features = new[] { feature }
-            };
-
-            var oldLayer = mapControl.Map.Layers.FirstOrDefault(l => l.Name == "user");
-            if (oldLayer != null)
-                mapControl.Map.Layers.Remove(oldLayer);
-
-            mapControl.Map.Layers.Add(layer);
-            mapControl.Refresh();
-        }
+        private async Task ShowUserLocation(double latitude, double longitude)
+            => await EvaluateMapScriptAsync($"setUserLocation({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)});");
 
         // Công dụng: hiển thị marker và tên các POI trên bản đồ
-        private void ShowPoisOnMap()
+        private async Task ShowPoisOnMap()
         {
-            if (mapControl.Map == null)
-                return;
+            await RenderMapDataAsync();
 
-            if (poiLayer != null)
-                mapControl.Map.Layers.Remove(poiLayer);
-
-            var features = new List<IFeature>();
-
-            foreach (var poi in geoPois)
-            {
-                if (!IsValidCoordinate(poi.Latitude, poi.Longitude))
-                {
-                    Debug.WriteLine($"[MAP SKIP INVALID] {poi.Name} | Lat={poi.Latitude} | Lng={poi.Longitude}");
-                    continue;
-                }
-
-                var sphericalMercator = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-                var feature = new PointFeature(new MPoint(sphericalMercator.x, sphericalMercator.y));
-
-                feature["PoiId"] = poi.Id;
-                feature["Label"] = poi.Name;
-
-                feature.Styles.Add(new SymbolStyle
-                {
-                    SymbolType = SymbolType.Ellipse,
-                    Fill = new MapsuiBrush(MapsuiColor.Red),
-                    Outline = new MapsuiPen(MapsuiColor.White, 2),
-                    SymbolScale = 1.0
-                });
-
-                //feature.Styles.Add(new LabelStyle
-                //{
-                //    Text = poi.Name,
-                //    Offset = new Offset(0, 20)
-                //});
-
-                features.Add(feature);
-            }
-
-            poiLayer = new MemoryLayer
-            {
-                Name = "POIs",
-                Features = features
-            };
-
-            mapControl.Map.Layers.Add(poiLayer);
-            mapControl.Refresh();
-
-            var firstPoi = geoPois.FirstOrDefault(p => IsValidCoordinate(p.Latitude, p.Longitude));
-            if (firstPoi != null)
-            {
-                var center = SphericalMercator.FromLonLat(firstPoi.Longitude, firstPoi.Latitude);
-                mapControl.Map.Navigator.CenterOn(new MPoint(center.x, center.y));
-                mapControl.Map.Navigator.ZoomTo(5000);
-            }
-
+            var featureCount = geoPois.Count(p => IsValidCoordinate(p.Latitude, p.Longitude));
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 resultLabel.Text = LanguageManager.Get(
-                    $"Đã hiển thị {features.Count} POI trên bản đồ",
-                    $"Displayed {features.Count} POIs on the map",
-                    $"地图上已显示 {features.Count} 个 POI",
-                    $"지도에 {features.Count}개의 POI를 표시했습니다",
-                    $"地図に {features.Count} 件のPOIを表示しました",
-                    $"{features.Count} POI affichés sur la carte");
+                    $"Đã hiển thị {featureCount} POI trên bản đồ",
+                    $"Displayed {featureCount} POIs on the map",
+                    $"地图上已显示 {featureCount} 个 POI",
+                    $"지도에 {featureCount}개의 POI를 표시했습니다",
+                    $"地図に {featureCount} 件のPOIを表示しました",
+                    $"{featureCount} POI affichés sur la carte");
             });
         }
+
         //highlight POI gan nhat
-        private void HighlightNearestPoi()
-        {
-            if (mapControl.Map == null)
-                return;
-
-            if (poiLayer != null)
-                mapControl.Map.Layers.Remove(poiLayer);
-
-            var features = new List<IFeature>();
-
-            foreach (var poi in geoPois)
-            {
-                if (!IsValidCoordinate(poi.Latitude, poi.Longitude))
-                    continue;
-
-                var sphericalMercator = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-                var feature = new PointFeature(new MPoint(sphericalMercator.x, sphericalMercator.y));
-
-                feature["PoiId"] = poi.Id;
-                feature["Label"] = poi.Name;
-
-                bool isNearest = nearestPoiId.HasValue && poi.Id == nearestPoiId.Value;
-
-                feature.Styles.Add(new SymbolStyle
-                {
-                    SymbolType = SymbolType.Ellipse,
-                    Fill = isNearest
-                        ? new MapsuiBrush(new MapsuiColor(255, 215, 0))   // vàng nổi bật
-                        : new MapsuiBrush(MapsuiColor.Red),
-                    Outline = isNearest
-                        ? new MapsuiPen(MapsuiColor.Black, 3)
-                        : new MapsuiPen(MapsuiColor.White, 2),
-                    SymbolScale = isNearest ? 1.2 : 0.9
-                });
-
-                //feature.Styles.Add(new LabelStyle
-                //{
-                //    Text = isNearest ? $"★ {poi.Name}" : poi.Name,
-                //    Offset = new Offset(0, 20)
-                //});
-
-                features.Add(feature);
-            }
-
-            poiLayer = new MemoryLayer
-            {
-                Name = "POIs",
-                Features = features
-            };
-
-            mapControl.Map.Layers.Add(poiLayer);
-            mapControl.Refresh();
-        }
+        private async Task HighlightNearestPoi()
+            => await RenderMapDataAsync();
 
         // Công dụng: vẽ vòng tròn geofence của từng POI trên bản đồ
-        private void DrawGeofenceCircles()
+        private async Task DrawGeofenceCircles()
+            => await RenderMapDataAsync();
+
+        private async Task RenderMapDataAsync()
         {
-            if (mapControl.Map == null || geoPois == null || geoPois.Count == 0)
+            var mapPois = geoPois
+                .Where(p => IsValidCoordinate(p.Latitude, p.Longitude))
+                .Select(p => new
+                {
+                    id = p.Id,
+                    name = p.Name,
+                    lat = p.Latitude,
+                    lng = p.Longitude,
+                    radius = p.RadiusMeters,
+                    isNearest = nearestPoiId.HasValue && p.Id == nearestPoiId.Value
+                })
+                .ToList();
+
+            var poiJson = JsonSerializer.Serialize(mapPois);
+            await EvaluateMapScriptAsync($"renderPois({JsonSerializer.Serialize(poiJson)});");
+            await EvaluateMapScriptAsync($"renderGeofences({JsonSerializer.Serialize(poiJson)});");
+
+            var firstPoi = mapPois.FirstOrDefault();
+            if (firstPoi != null)
+            {
+                await MoveMapToLocation(firstPoi.lat, firstPoi.lng);
+            }
+        }
+
+        private async Task EvaluateMapScriptAsync(string script)
+        {
+            if (!isMapReady)
                 return;
 
-            var features = new List<IFeature>();
-
-            foreach (var poi in geoPois)
+            try
             {
-                var center = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-
-                var displayRadius = Math.Max(poi.RadiusMeters, 80);
-                var circleGeometry = new NtsPoint(center.x, center.y).Buffer(displayRadius);
-
-                var feature = new GeometryFeature
-                {
-                    Geometry = circleGeometry
-                };
-
-                feature.Styles.Add(new VectorStyle
-                {
-                    Fill = new MapsuiBrush(new MapsuiColor(255, 0, 0, 80)),
-                    Outline = new MapsuiPen(new MapsuiColor(255, 0, 0, 225), 3)
-                });
-
-                features.Add(feature);
+                await mapWebView.EvaluateJavaScriptAsync(script);
             }
-
-            var geofenceLayer = new MemoryLayer
+            catch (Exception ex)
             {
-                Name = "geofences",
-                Features = features
-            };
-
-            var oldLayer = mapControl.Map.Layers.FirstOrDefault(l => l.Name == "geofences");
-            if (oldLayer != null)
-                mapControl.Map.Layers.Remove(oldLayer);
-
-            mapControl.Map.Layers.Add(geofenceLayer);
-            mapControl.Refresh();
+                Debug.WriteLine($"[MAP JS ERROR] {ex.Message}");
+            }
         }
 
         // Công dụng: đọc nội dung thuyết minh bằng Text To Speech theo đúng ngôn ngữ
@@ -1270,14 +1215,8 @@ namespace FoodGuideApp
             nearestPoiCurrent = poi;
 
             // 🔥 Gọi lại hàm highlight sẵn có
-            HighlightNearestPoi();
-
-            // 🔥 Zoom map tới POI
-            var point = SphericalMercator.FromLonLat(poi.Longitude, poi.Latitude);
-            mapControl.Map.Navigator.CenterOn(point.ToMPoint());
-            mapControl.Map.Navigator.ZoomTo(6);
-
-            mapControl.Refresh();
+            _ = HighlightNearestPoi();
+            _ = MoveMapToLocation(poi.Latitude, poi.Longitude);
         }
         private void ApplyLanguageToUI()
         {
