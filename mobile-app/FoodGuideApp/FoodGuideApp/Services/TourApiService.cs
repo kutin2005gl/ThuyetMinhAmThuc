@@ -10,13 +10,14 @@ public class TourApiService
     public TourApiService()
     {
         _httpClient = new HttpClient();
-        _httpClient.BaseAddress = new Uri("http://10.0.2.2:5000/");
+        _httpClient.BaseAddress = new Uri($"{AppConfig.BaseUrl}/");
     }
 
     public async Task<List<Tour>> GetToursAsync()
     {
         try
         {
+            GuestSessionService.AttachTo(_httpClient);
             var response = await _httpClient.GetAsync("api/tour");
             response.EnsureSuccessStatusCode();
 

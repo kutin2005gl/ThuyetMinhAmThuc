@@ -16,7 +16,8 @@ public class PoiService
     {
         try
         {
-            string url = "http://10.0.2.2:5000/api/poi";
+            GuestSessionService.AttachTo(_httpClient);
+            string url = $"{AppConfig.BaseUrl}/api/poi";
             var json = await _httpClient.GetStringAsync(url);
 
             var options = new JsonSerializerOptions
