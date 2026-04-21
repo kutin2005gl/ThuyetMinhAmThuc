@@ -78,7 +78,8 @@ public partial class TourDetailPage : ContentPage
         try
         {
             using var httpClient = new HttpClient();
-            httpClient.BaseAddress = new Uri("http://10.0.2.2:5000/");
+            httpClient.BaseAddress = new Uri($"{AppConfig.BaseUrl}/");
+            GuestSessionService.AttachTo(httpClient);
 
             var res = await httpClient.GetAsync("api/poi");
             res.EnsureSuccessStatusCode();

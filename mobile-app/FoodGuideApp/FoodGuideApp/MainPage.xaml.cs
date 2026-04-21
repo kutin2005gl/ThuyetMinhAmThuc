@@ -150,14 +150,9 @@ namespace FoodGuideApp
             audioManager.Start();
 
             LoadAppSettings();
+            GuestSessionService.AttachTo(httpClient);
 
             _ = InitializeData();
-        }
-
-        // Công dụng: chứa base URL API để app gọi dữ liệu POI
-        public static class AppConfig
-        {
-            public static string BaseUrl = "http://10.0.2.2:5000";
         }
 
         // Công dụng: khởi tạo dữ liệu ban đầu của trang
