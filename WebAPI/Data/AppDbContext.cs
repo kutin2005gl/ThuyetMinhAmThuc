@@ -14,6 +14,7 @@ public class AppDbContext : DbContext
     public DbSet<Tour> Tours => Set<Tour>();
     public DbSet<TourPoi> TourPois => Set<TourPoi>();
     public DbSet<SupportedLanguage> SupportedLanguages => Set<SupportedLanguage>();
+    public DbSet<AnalyticsEvent> AnalyticsEvents => Set<AnalyticsEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

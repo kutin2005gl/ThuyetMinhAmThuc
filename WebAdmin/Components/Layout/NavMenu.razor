@@ -68,6 +68,15 @@
                 </NavLink>
             </div>
 
+            @if (Session.IsAdmin)
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="analytics">
+                        <span class="bi bi-bar-chart"></span> Thống kê
+                    </NavLink>
+                </div>
+            }
+
             <div class="nav-item px-3 mt-auto mb-3">
                 <button class="btn logout-btn w-100 d-flex align-items-center justify-content-between py-2 shadow-sm" @onclick="Logout">
                     <div class="text-start">
