@@ -1,0 +1,125 @@
+@page "/monitoring"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+
+<h3>Monitoring người dùng app</h3>
+
+<div class="row g-3 mb-3">
+    <div class="col-auto">
+        <label class="form-label">Số ngày</label>
+        <input class="form-control" type="number" min="1" max="90" @bind="days" />
+    </div>
+    <div class="col-auto align-self-end">
+        <button class="btn btn-primary" @onclick="LoadAsync">Tải dữ liệu</button>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(error))
+{
+    <div class="alert alert-danger">@error</div>
+}
+
+@if (summary != null)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <div class="text-muted">Khách duy nhất</div>
+                <h4>@summary.Totals.UniqueUsers</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <div class="text-muted">Lượt mở app</div>
+                <h4>@summary.Totals.AppOpens</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <div class="text-muted">Lượt quét QR</div>
+                <h4>@summary.Totals.QrScans</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card p-3 h-100">
+                <div class="text-muted">Tổng sự kiện</div>
+                <h4>@summary.Totals.TotalEvents</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="card p-3">
+        <h5>Theo ngày (UTC)</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Ngày</th>
+                    <th>Khách duy nhất</th>
+                    <th>Mở app</th>
+                    <th>Quét QR</th>
+                    <th>Tổng sự kiện</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in summary.PerDay)
+                {
+                    <tr>
+                        <td>@item.Date.ToString("yyyy-MM-dd")</td>
+                        <td>@item.UniqueUsers</td>
+                        <td>@item.AppOpens</td>
+                        <td>@item.QrScans</td>
+                        <td>@item.TotalEvents</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private int days = 7;
+    private UsageSummary? summary;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            summary = await http.GetFromJsonAsync<UsageSummary>($"/api/usage/summary?days={days}");
+        }
+        catch (Exception ex)
+        {
+            error = $"Không tải được dữ liệu monitoring: {ex.Message}";
+        }
+    }
+
+    public class UsageSummary
+    {
+        public UsageTotals Totals { get; set; } = new();
+        public List<UsagePerDay> PerDay { get; set; } = new();
+    }
+
+    public class UsageTotals
+    {
+        public int UniqueUsers { get; set; }
+        public int AppOpens { get; set; }
+        public int QrScans { get; set; }
+        public int TotalEvents { get; set; }
+    }
+
+    public class UsagePerDay
+    {
+        public DateTime Date { get; set; }
+        public int UniqueUsers { get; set; }
+        public int AppOpens { get; set; }
+        public int QrScans { get; set; }
+        public int TotalEvents { get; set; }
+    }
+}
