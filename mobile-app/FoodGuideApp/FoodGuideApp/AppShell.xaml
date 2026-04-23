@@ -3,12 +3,31 @@
     x:Class="FoodGuideApp.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:FoodGuideApp"
-    Title="FoodGuideApp">
+    xmlns:local="clr-namespace:FoodGuideApp">
 
-    <ShellContent
-        Title="Home"
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
+    <TabBar>
+        <ShellContent
+            x:Name="homeTab"
+            Route="Home"
+            Title="Home"
+            ContentTemplate="{DataTemplate local:MainPage}" />
 
+        <ShellContent
+            x:Name="tourTab"
+            Route="Tours"
+            Title="Tours"
+            ContentTemplate="{DataTemplate local:TourPage}" />
+
+        <ShellContent
+            x:Name="poiTab"
+            Route="POIs"
+            Title="POIs"
+            ContentTemplate="{DataTemplate local:PoiListPage}" />
+
+        <ShellContent
+            x:Name="settingsTab"
+            Route="Settings"
+            Title="Settings"
+            ContentTemplate="{DataTemplate local:SettingsPage}" />
+    </TabBar>
 </Shell>

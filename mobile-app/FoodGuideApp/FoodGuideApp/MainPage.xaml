@@ -1,33 +1,54 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
              x:Class="FoodGuideApp.MainPage"
              Title="Home">
 
     <ScrollView>
         <VerticalStackLayout Padding="30" Spacing="15">
 
-            <Label Text="HỆ THỐNG THUYẾT MINH ẨM THỰC"
+            <Label x:Name="appTitleLabel"
+                   Text="HỆ THỐNG THUYẾT MINH ẨM THỰC"
                    FontSize="24"
                    HorizontalOptions="Center" />
 
-            <Label Text="PoC GPS Tracking"
+            <Label x:Name="subTitleLabel"
+                   Text="PoC GPS Tracking"
                    FontSize="28"
                    HorizontalOptions="Center" />
 
-            <Button Text="Bắt đầu theo dõi"
+            <Button x:Name="startTrackingButton"
+                    Text="Bắt đầu theo dõi"
                     Clicked="OnStartTrackingClicked" />
 
-            <Button Text="Dừng theo dõi"
+            <Button x:Name="stopTrackingButton"
+                    Text="Dừng theo dõi"
                     Clicked="OnStopTrackingClicked" />
+
+            <Button x:Name="scanQrButton"
+                    Text="Quét QR"
+                    Clicked="OnScanQrClicked" />
 
             <Label x:Name="locationLabel"
                    Text="Chưa có vị trí"
                    FontSize="20" />
 
-            <mapsui:MapControl x:Name="mapControl"
-                               HeightRequest="400" />
+            <WebView x:Name="mapWebView"
+                     Navigated="OnMapWebViewNavigated"
+                     HeightRequest="400" />
+
+            <Button x:Name="viewNearestPoiButton"
+                    Text="Xem chi tiết POI gần nhất"
+                    Clicked="OnViewNearestPoiClicked" />
+
+            <Label x:Name="resultLabel"
+                   Text="Chưa tải POI"
+                   FontSize="16" />
+
+            <Label x:Name="geofenceLabel"
+                   Text="Chưa vào vùng geofence"
+                   FontSize="18"
+                   TextColor="Red" />
 
         </VerticalStackLayout>
     </ScrollView>

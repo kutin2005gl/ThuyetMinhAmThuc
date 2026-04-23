@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="FoodGuideApp.PoiListPage"
+             Title="POIs"
+             BackgroundColor="#F5F7FB">
+
+    <Grid RowDefinitions="Auto,*" Padding="15">
+
+        <Label x:Name="pageTitleLabel"
+               Text="Danh sách địa điểm"
+               FontSize="24"
+               FontAttributes="Bold"
+               TextColor="Black" />
+
+        <CollectionView x:Name="poiCollectionView"
+                        Grid.Row="1"
+                        Margin="0,15,0,0"
+                        SelectionMode="Single"
+                        SelectionChanged="OnPoiSelected">
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Stroke="#DDDDDD"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 12"
+                            BackgroundColor="White"
+                            Padding="15"
+                            Margin="0,0,0,12">
+
+                        <VerticalStackLayout>
+                            <Label Text="{Binding DisplayName}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="Black" />
+
+                            <Label Text="{Binding DisplayDescription}"
+                                   FontSize="14"
+                                   TextColor="Gray" />
+                        </VerticalStackLayout>
+
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+        </CollectionView>
+
+    </Grid>
+</ContentPage>
