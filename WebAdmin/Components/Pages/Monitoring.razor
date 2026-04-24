@@ -1,0 +1,190 @@
+@page "/monitoring"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0">
+                <i class="bi bi-speedometer2 me-2"></i>Hệ thống Giám sát Du khách
+            </h3>
+            <small class="text-muted">Theo dõi hoạt động thực tế của người dùng app</small>
+        </div>
+        
+        <div class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label small fw-bold">Khoảng thời gian (ngày)</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-calendar3"></i></span>
+                    <input class="form-control" type="number" min="1" max="90" @bind="days" style="width: 80px;" />
+                </div>
+            </div>
+            <button class="btn btn-primary rounded-pill px-4 shadow-sm" @onclick="LoadAsync">
+                <i class="bi bi-arrow-clockwise me-1"></i> Làm mới
+            </button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error))
+    {
+        <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+            <div>@error</div>
+        </div>
+    }
+
+    @if (summary != null)
+    {
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden h-100">
+                    <div class="card-body p-4 border-start border-4 border-primary">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted small fw-bold text-uppercase mb-1">Khách duy nhất</p>
+                                <h2 class="fw-bold mb-0">@summary.Totals.UniqueUsers</h2>
+                            </div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-people text-primary fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden h-100">
+                    <div class="card-body p-4 border-start border-4 border-success">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted small fw-bold text-uppercase mb-1">Lượt mở app</p>
+                                <h2 class="fw-bold mb-0">@summary.Totals.AppOpens</h2>
+                            </div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-phone text-success fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden h-100">
+                    <div class="card-body p-4 border-start border-4 border-warning">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted small fw-bold text-uppercase mb-1">Lượt quét QR</p>
+                                <h2 class="fw-bold mb-0">@summary.Totals.QrScans</h2>
+                            </div>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-qr-code-scan text-warning fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-3 overflow-hidden h-100">
+                    <div class="card-body p-4 border-start border-4 border-info">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <p class="text-muted small fw-bold text-uppercase mb-1">Tổng sự kiện</p>
+                                <h2 class="fw-bold mb-0">@summary.Totals.TotalEvents</h2>
+                            </div>
+                            <div class="bg-info bg-opacity-10 p-3 rounded-circle">
+                                <i class="bi bi-graph-up-arrow text-info fs-3"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div class="card-header bg-white py-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-table me-2"></i>Biến động theo ngày</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">NGÀY</th>
+                            <th>KHÁCH DUY NHẤT</th>
+                            <th>MỞ APP</th>
+                            <th>QUÉT QR</th>
+                            <th class="text-end pe-4">TỔNG SỰ KIỆN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in summary.PerDay)
+                        {
+                            <tr>
+                                <td class="ps-4 fw-bold">@item.Date.ToString("dd/MM/yyyy")</td>
+                                <td><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-3">@item.UniqueUsers</span></td>
+                                <td>@item.AppOpens</td>
+                                <td>@item.QrScans</td>
+                                <td class="text-end pe-4"><span class="fw-bold">@item.TotalEvents</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else if (error == null)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p class="text-muted">Đang phân tích dữ liệu hệ thống...</p>
+        </div>
+    }
+</div>
+
+@code {
+    // ... Giữ nguyên phần logic Code của bạn ...
+    private int days = 7;
+    private UsageSummary? summary;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        error = null;
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            summary = await http.GetFromJsonAsync<UsageSummary>($"/api/usage/summary?days={days}");
+        }
+        catch (Exception ex)
+        {
+            error = $"Lỗi kết nối API: {ex.Message}";
+        }
+    }
+
+    public class UsageSummary
+    {
+        public UsageTotals Totals { get; set; } = new();
+        public List<UsagePerDay> PerDay { get; set; } = new();
+    }
+
+    public class UsageTotals
+    {
+        public int UniqueUsers { get; set; }
+        public int AppOpens { get; set; }
+        public int QrScans { get; set; }
+        public int TotalEvents { get; set; }
+    }
+
+    public class UsagePerDay
+    {
+        public DateTime Date { get; set; }
+        public int UniqueUsers { get; set; }
+        public int AppOpens { get; set; }
+        public int QrScans { get; set; }
+        public int TotalEvents { get; set; }
+    }
+}

@@ -14,10 +14,22 @@ public class AppDbContext : DbContext
     public DbSet<Tour> Tours => Set<Tour>();
     public DbSet<TourPoi> TourPois => Set<TourPoi>();
     public DbSet<SupportedLanguage> SupportedLanguages => Set<SupportedLanguage>();
-    public DbSet<AnalyticsEvent> AnalyticsEvents => Set<AnalyticsEvent>();
+    public DbSet<AppUsageEvent> AppUsageEvents => Set<AppUsageEvent>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+
+        modelBuilder.Entity<AppUsageEvent>()
+            .Property(e => e.CreatedAtUtc)
+            .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        modelBuilder.Entity<AppUsageEvent>()
+            .HasIndex(e => new { e.CreatedAtUtc, e.EventType });
+
+        modelBuilder.Entity<AppUsageEvent>()
+            .HasIndex(e => new { e.CreatedAtUtc, e.GuestSessionId });
+
         modelBuilder.Entity<Poi>().HasData(
             new Poi { Id = 1, Name = "Quán Phở Bà Dậu", Description = "Phở bò truyền thống từ 1970", Latitude = 10.7769, Longitude = 106.7009, RadiusMeters = 30, IsActive = true, CreatedAt = new DateTime(2024, 1, 1) },
             new Poi { Id = 2, Name = "Bánh Mì Hùng", Description = "Bánh mì đặc sản nổi tiếng nhất phố", Latitude = 10.7775, Longitude = 106.7015, RadiusMeters = 30, IsActive = true, CreatedAt = new DateTime(2024, 1, 1) },

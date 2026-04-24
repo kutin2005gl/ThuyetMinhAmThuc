@@ -47,7 +47,6 @@ namespace FoodGuideApp
         private readonly AudioQueueManager audioManager;
         private int? nearestPoiId = null;
         private bool isManualViewingPoi = false;
-        private DateTime lastAnalyticsTime = DateTime.MinValue;
         private const string LeafletHtmlContent = """
 <!DOCTYPE html>
 <html>
@@ -293,7 +292,7 @@ namespace FoodGuideApp
 
             // Reset trạng thái tracking
             isTracking = true;
-            
+
             lastMapUpdateTime = DateTime.MinValue;
             lastPoiCheckTime = DateTime.MinValue;
 
@@ -351,13 +350,6 @@ namespace FoodGuideApp
                     if (location != null)
                     {
                         nullLocationCount = 0;
-
-                        if ((DateTime.Now - lastAnalyticsTime).TotalSeconds >= 20)
-                        {
-                            lastAnalyticsTime = DateTime.Now;
-                            _ = SendAnalyticsEvent("location_update", location);
-                            Debug.WriteLine("[ANALYTICS] Đã gửi tọa độ cập nhật Heatmap.");
-                        }
 
                         Debug.WriteLine($"[TRACKING] Current: {location.Latitude}, {location.Longitude}");
                         Debug.WriteLine($"[UI CHECK] Lat={location.Latitude:F6}, Lng={location.Longitude:F6}");
@@ -629,8 +621,6 @@ namespace FoodGuideApp
 
                 isManualViewingPoi = false;
 
-                _ = SendAnalyticsEvent("enter_poi", location, bestPoi.Id);
-
                 SavePoiInfoToPreferences(bestPoi, bestDistance);
                 ShowPoiDetails(bestPoi);
 
@@ -676,8 +666,6 @@ namespace FoodGuideApp
                             Priority = bestPoi.Priority
                         });
 
-                        _ = SendAnalyticsEvent("listen", location, bestPoi.Id);
-
                         spokenPois.Add(bestPoi.Id);
                         Debug.WriteLine($"[TTS OK] {bestPoi.Name} | lang={currentLanguage}");
                     }
@@ -696,9 +684,9 @@ namespace FoodGuideApp
                         $"❌ Erreur de narration : {bestPoi.Name}");
                         });
                     }
-                
+
+                }
             }
-        }
         }
         // Công dụng: kiểm tra khi người dùng đang đến gần POI nhưng chưa vào hẳn geofence
         private void CheckNearPoi(SensorLocation location)
@@ -1075,7 +1063,7 @@ namespace FoodGuideApp
         {
             base.OnDisappearing();
 
-            audioManager.StopCurrent(); 
+            audioManager.StopCurrent();
         }
         // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
         // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
@@ -1310,31 +1298,6 @@ namespace FoodGuideApp
                     "Hors de la zone geofence");
             }
         }
-        private async Task SendAnalyticsEvent(string eventType, SensorLocation currentLocation, int? poiId = null, int? duration = null)
-        {
-            try
-            {
-                var eventData = new
-                {
-                    SessionId = "visitor_" + DeviceInfo.Name.Replace(" ", "_"),
-                    EventType = eventType,
-                    PoiId = poiId,
-                    Latitude = currentLocation?.Latitude,
-                    Longitude = currentLocation?.Longitude,
-                    DurationSeconds = duration,
-                    CreatedAt = DateTime.UtcNow
-                };
 
-                var json = JsonSerializer.Serialize(eventData);
-                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-                // Sử dụng BaseUrl từ AppConfig đã có trong dự án của bạn
-                await httpClient.PostAsync($"{AppConfig.BaseUrl}/api/Analytics/event", content);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Lỗi gửi Analytics: " + ex.Message);
-            }
-        }
     }
 }

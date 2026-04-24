@@ -34,6 +34,17 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS AppUsageEvents (
+            Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            GuestSessionId TEXT NOT NULL,
+            EventType TEXT NOT NULL,
+            EventValue TEXT NULL,
+            CreatedAtUtc TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+        );
+    ");
+    db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_AppUsageEvents_CreatedAtUtc_EventType ON AppUsageEvents (CreatedAtUtc, EventType);");
+    db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_AppUsageEvents_CreatedAtUtc_GuestSessionId ON AppUsageEvents (CreatedAtUtc, GuestSessionId);");
 }
 
 app.UseSwagger();

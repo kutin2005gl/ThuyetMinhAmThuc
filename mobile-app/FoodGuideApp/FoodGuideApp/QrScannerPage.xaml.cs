@@ -6,6 +6,7 @@ namespace FoodGuideApp;
 public partial class QrScannerPage : ContentPage
 {
     private bool isProcessing = false;
+    private readonly UsageTrackingService _usageTrackingService = new();
 
     public QrScannerPage()
     {
@@ -42,6 +43,7 @@ public partial class QrScannerPage : ContentPage
                     isProcessing = false;
                     return;
                 }
+                await _usageTrackingService.TrackQrScanAsync(poiId);
                 await Shell.Current.GoToAsync("//pois");
                 await Shell.Current.Navigation.PushAsync(new PoiInfoPage());
             }

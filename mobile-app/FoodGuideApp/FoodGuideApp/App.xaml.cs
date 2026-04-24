@@ -5,6 +5,7 @@ namespace FoodGuideApp;
 public partial class App : Application
 {
     private readonly AppShell _shell;
+    private readonly UsageTrackingService _usageTrackingService = new();
 
     // Công dụng: nhận MainPage từ Dependency Injection
     // để MainPage có thể dùng các service đã đăng ký trong MauiProgram.
@@ -13,6 +14,7 @@ public partial class App : Application
         InitializeComponent();
         _shell = shell;
         MainPage = shell;
+        _ = _usageTrackingService.TrackAppOpenAsync();
         _ = HandleInitialUriAsync();
     }
 
