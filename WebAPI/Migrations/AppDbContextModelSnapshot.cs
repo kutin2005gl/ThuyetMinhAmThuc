@@ -17,6 +17,29 @@ namespace WebAPI.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.5");
 
+            modelBuilder.Entity("SupportedLanguage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VoiceName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SupportedLanguages");
+                });
+
             modelBuilder.Entity("WebAPI.Models.Entities.AdminUser", b =>
                 {
                     b.Property<int>("Id")
@@ -29,6 +52,9 @@ namespace WebAPI.Migrations
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -55,10 +81,70 @@ namespace WebAPI.Migrations
                             Id = 1,
                             CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             FullName = "Quản trị viên",
+                            IsActive = true,
                             PasswordHash = "$2a$11$rBnqmPnFjQFnXcJZCJRfUOZjHvBNOGKcMmJJKNJaGpGcBFQ9ABCDE",
                             Role = "Admin",
                             Username = "admin"
                         });
+                });
+
+            modelBuilder.Entity("WebAPI.Models.Entities.AnalyticsEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("PoiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AnalyticsEvents");
+                });
+
+            modelBuilder.Entity("WebAPI.Models.Entities.AppUsageEvent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventValue")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GuestSessionId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppUsageEvents");
                 });
 
             modelBuilder.Entity("WebAPI.Models.Entities.AudioFile", b =>
@@ -99,6 +185,9 @@ namespace WebAPI.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImagePath")
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActive")
@@ -155,6 +244,55 @@ namespace WebAPI.Migrations
                             Name = "Chè Bà Ba",
                             RadiusMeters = 30.0
                         });
+                });
+
+            modelBuilder.Entity("WebAPI.Models.Entities.Tour", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tours");
+                });
+
+            modelBuilder.Entity("WebAPI.Models.Entities.TourPoi", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PoiId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TourId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PoiId");
+
+                    b.HasIndex("TourId");
+
+                    b.ToTable("TourPois");
                 });
 
             modelBuilder.Entity("WebAPI.Models.Entities.Translation", b =>
@@ -236,6 +374,25 @@ namespace WebAPI.Migrations
                     b.Navigation("Poi");
                 });
 
+            modelBuilder.Entity("WebAPI.Models.Entities.TourPoi", b =>
+                {
+                    b.HasOne("WebAPI.Models.Entities.Poi", "Poi")
+                        .WithMany()
+                        .HasForeignKey("PoiId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WebAPI.Models.Entities.Tour", "Tour")
+                        .WithMany("TourPois")
+                        .HasForeignKey("TourId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Poi");
+
+                    b.Navigation("Tour");
+                });
+
             modelBuilder.Entity("WebAPI.Models.Entities.Translation", b =>
                 {
                     b.HasOne("WebAPI.Models.Entities.Poi", "Poi")
@@ -252,6 +409,11 @@ namespace WebAPI.Migrations
                     b.Navigation("AudioFiles");
 
                     b.Navigation("Translations");
+                });
+
+            modelBuilder.Entity("WebAPI.Models.Entities.Tour", b =>
+                {
+                    b.Navigation("TourPois");
                 });
 #pragma warning restore 612, 618
         }

@@ -58,10 +58,9 @@ public partial class App : Application
     private static bool TryParsePoiId(Uri uri, out int poiId)
     {
         poiId = 0;
-        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        return segments.Length == 2
-            && segments[0].Equals("poi", StringComparison.OrdinalIgnoreCase)
-            && int.TryParse(segments[1], out poiId);
+        return uri.Scheme.Equals("foodguide", StringComparison.OrdinalIgnoreCase)
+            && uri.Host.Equals("poi", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(uri.AbsolutePath.Trim('/'), out poiId);
     }
 }

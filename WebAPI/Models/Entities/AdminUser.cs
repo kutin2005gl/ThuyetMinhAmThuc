@@ -9,6 +9,7 @@ public class AdminUser
     public string Role { get; set; } = "Staff";
     public int? PoiId { get; set; }
     public DateTime CreatedAt { get; set; } = new DateTime(2024, 1, 1);
+    public bool IsActive { get; set; } = true;
 }
 
 

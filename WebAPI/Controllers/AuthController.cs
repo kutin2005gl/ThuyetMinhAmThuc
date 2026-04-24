@@ -26,6 +26,9 @@ public class AuthController : ControllerBase
         if (user == null)
             return Unauthorized(new { message = "Tài khoản không tồn tại" });
 
+        if (!user.IsActive)
+            return Unauthorized(new { message = "Tài khoản đã bị khóa. Liên hệ Admin để mở khóa." });
+
         var valid = BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash);
         if (!valid)
             return Unauthorized(new { message = "Mật khẩu không đúng" });
@@ -62,6 +65,35 @@ public class AuthController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(new { message = "Tạo tài khoản thành công" });
+    }
+
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsers()
+    {
+        var users = await _db.AdminUsers
+            .Select(u => new
+            {
+                u.Id,
+                u.Username,
+                u.FullName,
+                u.Role,
+                u.PoiId,
+                u.IsActive
+            })
+            .ToListAsync();
+        return Ok(users);
+    }
+
+    [HttpPut("users/{id}/toggle")]
+    public async Task<IActionResult> ToggleActive(int id)
+    {
+        var user = await _db.AdminUsers.FindAsync(id);
+        if (user == null) return NotFound();
+
+        user.IsActive = !user.IsActive;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { user.IsActive });
     }
 
     public record LoginDto(string Username, string Password);

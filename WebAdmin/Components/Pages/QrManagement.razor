@@ -1,0 +1,159 @@
+@page "/qr"
+@rendermode InteractiveServer
+@inject IHttpClientFactory HttpFactory
+@inject UserSession Session
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+        <div>
+            <h3 class="fw-bold text-primary mb-0">
+                <i class="bi bi-qr-code-scan me-2"></i>Quản lý QR Code & Tọa độ
+            </h3>
+            <small class="text-muted">
+                @(Session.IsAdmin ? "Hệ thống quản lý toàn bộ mã QR địa điểm" : "Mã QR định danh cho quầy của bạn")
+            </small>
+        </div>
+    </div>
+
+    @if (pois == null)
+    {
+        <div class="text-center p-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Đang tải dữ liệu...</p>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-primary text-white">
+                        <tr>
+                            <th class="ps-4 py-3">TÊN QUẦY</th>
+                            <th>VỊ TRÍ (LAT/LNG)</th>
+                            <th>BÁN KÍNH</th>
+                            <th class="text-center pe-4">MÃ QR LANDING PAGE</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        @foreach (var poi in pois)
+                        {
+                            var landingUrl = GetLandingUrl(poi.Id);
+
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="fw-bold text-dark fs-5">@poi.Name</span>
+                                </td>
+                                <td>
+                                    <div class="d-flex flex-column gap-1">
+                                        <code class="text-danger small">LAT: @poi.Latitude</code>
+                                        <code class="text-primary small">LNG: @poi.Longitude</code>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">@poi.RadiusMeters m</span>
+                                </td>
+                                <td class="text-center pe-4 py-3">
+                                    <div class="d-inline-block p-2 border rounded bg-white shadow-sm mb-2">
+                                        <img src="@GetQrUrl(poi.Id)"
+                                             alt="QR @poi.Name"
+                                             style="width:100px; height:100px; object-fit:contain" />
+                                    </div>
+                                    <div class="small text-muted mb-2">Link landing page</div>
+                                    <code class="d-inline-block bg-light border rounded px-2 py-1 mb-2 text-break text-start" style="max-width: 360px;">
+                                        @landingUrl
+                                    </code>
+                                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary rounded-pill px-3 shadow-sm"
+                                                @onclick="() => CopyLandingUrl(landingUrl)">
+                                            <i class="bi bi-clipboard me-1"></i> Copy link
+                                        </button>
+                                        <a href="@landingUrl"
+                                           target="_blank"
+                                           rel="noopener"
+                                           class="btn btn-sm btn-outline-success rounded-pill px-3 shadow-sm">
+                                            <i class="bi bi-box-arrow-up-right me-1"></i> Mở trang
+                                        </a>
+                                        <a href="@GetQrUrl(poi.Id)"
+                                           download="qr_@(poi.Name.Replace(" ", "_")).png"
+                                           class="btn btn-sm btn-outline-primary rounded-pill px-3 shadow-sm">
+                                            <i class="bi bi-download me-1"></i> Tải QR
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<PoiDto>? pois;
+    private string apiBaseUrl = "http://localhost:5000";
+    private string publicBaseUrl = "http://localhost:5000";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        await LoadPois();
+    }
+
+    private async Task LoadPois()
+    {
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            apiBaseUrl = http.BaseAddress?.ToString().TrimEnd('/') ?? apiBaseUrl;
+
+            var settings = await http.GetFromJsonAsync<QrSettingsDto>("/api/Qr/settings");
+            publicBaseUrl = string.IsNullOrWhiteSpace(settings?.PublicBaseUrl)
+                ? apiBaseUrl
+                : settings.PublicBaseUrl.TrimEnd('/');
+
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+
+            pois = Session.IsAdmin
+                ? allPois
+                : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi tải dữ liệu: {ex.Message}");
+        }
+    }
+
+    private string GetQrUrl(int poiId) => $"{apiBaseUrl}/api/Qr/{poiId}";
+
+    private string GetLandingUrl(int poiId) => $"{publicBaseUrl}/p/{poiId}";
+
+    private async Task CopyLandingUrl(string landingUrl)
+    {
+        await JS.InvokeVoidAsync("navigator.clipboard.writeText", landingUrl);
+    }
+
+    public class QrSettingsDto
+    {
+        public string PublicBaseUrl { get; set; } = "";
+        public string AppDownloadUrl { get; set; } = "";
+    }
+
+    public class PoiDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double RadiusMeters { get; set; }
+    }
+}

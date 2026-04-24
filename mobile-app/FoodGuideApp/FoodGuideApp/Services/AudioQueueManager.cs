@@ -1,19 +1,34 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
+using System.Linq;
+using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Microsoft.Maui.Media;
 
 namespace FoodGuideApp.Services;
 
 // Công dụng: quản lý hàng chờ audio của app.
 // - Phát audio tuần tự, không chồng nhau
-// - Chống phát trùng trong một khoảng thời gian ngắn
+// - Chống enqueue trùng do GPS rung
+// - Cooldown sau khi phát để tránh đọc lặp
+// - Bỏ job quá cũ hoặc không còn hợp lệ
 // - Xin audio focus trước khi phát
 // - Tự dừng audio hiện tại khi hệ thống báo mất audio focus
 public class AudioQueueManager
 {
     private readonly Channel<AudioJob> _channel;
+    private readonly ConcurrentDictionary<string, DateTime> _recentQueued;
     private readonly ConcurrentDictionary<string, DateTime> _recentPlayed;
-    private readonly TimeSpan _duplicateWindow = TimeSpan.FromSeconds(15);
+
+    // Thời gian chống enqueue trùng
+    private readonly TimeSpan _duplicateWindow = TimeSpan.FromSeconds(10);
+
+    // Thời gian cooldown sau khi đã phát xong
+    private readonly TimeSpan _playCooldown = TimeSpan.FromSeconds(20);
+
+    // Job chờ quá lâu thì bỏ
+    private readonly TimeSpan _staleJobWindow = TimeSpan.FromSeconds(15);
 
     private readonly IAudioFocusService _audioFocusService;
 
@@ -21,11 +36,17 @@ public class AudioQueueManager
     private bool _isProcessing = false;
     private readonly object _lock = new();
 
+    // Callback từ MainPage để kiểm tra POI còn hợp lệ không
+    // Ví dụ:
+    // audioManager.IsStillRelevant = poiId => nearestPoiId == poiId;
+    public Func<int, bool>? IsStillRelevant { get; set; }
+
     // Công dụng: khởi tạo queue audio, bộ nhớ chống trùng,
     // và gắn sự kiện mất audio focus để dừng audio hiện tại.
     public AudioQueueManager(IAudioFocusService audioFocusService)
     {
         _channel = Channel.CreateUnbounded<AudioJob>();
+        _recentQueued = new ConcurrentDictionary<string, DateTime>();
         _recentPlayed = new ConcurrentDictionary<string, DateTime>();
         _audioFocusService = audioFocusService;
 
@@ -46,25 +67,41 @@ public class AudioQueueManager
     }
 
     // Công dụng: thêm 1 audio job vào hàng chờ.
-    // Nếu cùng POI + ngôn ngữ vừa phát trong thời gian ngắn thì bỏ qua.
+    // - Bỏ nếu text rỗng
+    // - Bỏ nếu vừa enqueue trùng
+    // - Bỏ nếu vừa mới phát xong và còn cooldown
     public async Task EnqueueAsync(AudioJob job)
     {
         if (job == null || string.IsNullOrWhiteSpace(job.Text))
             return;
 
-        string key = $"{job.PoiId}_{job.Language}";
+        string key = BuildKey(job);
+        var now = DateTime.UtcNow;
 
-        if (_recentPlayed.TryGetValue(key, out var lastTime))
+        // Chống enqueue trùng liên tục do GPS rung
+        if (_recentQueued.TryGetValue(key, out var lastQueued))
         {
-            if (DateTime.UtcNow - lastTime < _duplicateWindow)
+            if (now - lastQueued < _duplicateWindow)
             {
-                System.Diagnostics.Debug.WriteLine($"[AUDIO] Bỏ qua audio trùng: {key}");
+                System.Diagnostics.Debug.WriteLine($"[AUDIO] Skip enqueue trùng: {key}");
                 return;
             }
         }
 
+        // Chống phát lại quá sớm sau khi vừa phát xong
+        if (_recentPlayed.TryGetValue(key, out var lastPlayed))
+        {
+            if (now - lastPlayed < _playCooldown)
+            {
+                System.Diagnostics.Debug.WriteLine($"[AUDIO] Skip cooldown: {key}");
+                return;
+            }
+        }
+
+        _recentQueued[key] = now;
+
         await _channel.Writer.WriteAsync(job);
-        System.Diagnostics.Debug.WriteLine($"[AUDIO] Enqueued: {job.Text}");
+        System.Diagnostics.Debug.WriteLine($"[AUDIO] Enqueued | {key}");
     }
 
     // Công dụng: lấy từng job từ queue và phát bằng Text-to-Speech.
@@ -75,7 +112,24 @@ public class AudioQueueManager
         {
             try
             {
-                string key = $"{job.PoiId}_{job.Language}";
+                if (job == null || string.IsNullOrWhiteSpace(job.Text))
+                    continue;
+
+                string key = BuildKey(job);
+
+                // Bỏ job quá cũ
+                if (DateTime.UtcNow - job.CreatedAt > _staleJobWindow)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AUDIO] Bỏ job cũ: {key}");
+                    continue;
+                }
+
+                // Bỏ job không còn phù hợp với POI hiện tại
+                if (IsStillRelevant != null && !IsStillRelevant(job.PoiId))
+                {
+                    System.Diagnostics.Debug.WriteLine($"[AUDIO] Bỏ job không còn hợp lệ: {key}");
+                    continue;
+                }
 
                 _currentSpeakCts?.Dispose();
                 _currentSpeakCts = new CancellationTokenSource();
@@ -96,16 +150,16 @@ public class AudioQueueManager
                     Volume = 1.0f
                 };
 
-                _recentPlayed[key] = DateTime.UtcNow;
-
                 System.Diagnostics.Debug.WriteLine(
-                    $"[AUDIO] Playing | PoiId={job.PoiId} | Lang={job.Language} | Text={job.Text}");
+                    $"[AUDIO] Playing | PoiId={job.PoiId} | Lang={job.Language} | Priority={job.Priority}");
 
                 await TextToSpeech.Default.SpeakAsync(
                     job.Text,
                     options,
                     _currentSpeakCts.Token
                 );
+
+                _recentPlayed[key] = DateTime.UtcNow;
 
                 System.Diagnostics.Debug.WriteLine($"[AUDIO] Done: {key}");
             }
@@ -124,6 +178,13 @@ public class AudioQueueManager
         }
     }
 
+    // Công dụng: tạo key duy nhất cho từng audio job theo POI + ngôn ngữ
+    private string BuildKey(AudioJob job)
+    {
+        string language = (job.Language ?? "vi").Trim().ToLowerInvariant();
+        return $"{job.PoiId}_{language}";
+    }
+
     // Công dụng: tìm locale TTS phù hợp với mã ngôn ngữ truyền vào.
     // Nếu không tìm thấy, fallback về tiếng Việt hoặc locale đầu tiên có sẵn.
     private async Task<Locale?> ResolveLocaleAsync(string languageCode)
@@ -133,7 +194,7 @@ public class AudioQueueManager
         if (locales == null || !locales.Any())
             return null;
 
-        string lang = (languageCode ?? "vi").Trim().ToLower();
+        string lang = (languageCode ?? "vi").Trim().ToLowerInvariant();
 
         var locale = locales.FirstOrDefault(l =>
             !string.IsNullOrWhiteSpace(l.Language) &&

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Data;
 using WebAPI.Models.Entities;
+using WebAPI.Services;
 
 namespace WebAPI.Controllers;
 
@@ -10,10 +11,12 @@ namespace WebAPI.Controllers;
 public class TranslationController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly TranslateService _translator;
 
-    public TranslationController(AppDbContext db)
+    public TranslationController(AppDbContext db, TranslateService translator)
     {
         _db = db;
+        _translator = translator;
     }
 
     [HttpGet("{poiId}")]
@@ -22,31 +25,76 @@ public class TranslationController : ControllerBase
         var translations = await _db.Translations
             .Where(t => t.PoiId == poiId)
             .ToListAsync();
-        return Ok(translations);
+
+        // Kiểm tra file thực tế trên server để trả về trạng thái HasAudio chính xác
+        var result = translations.Select(t => new {
+            t.Id,
+            t.PoiId,
+            t.Language,
+            t.Text,
+            HasAudio = System.IO.File.Exists(Path.Combine("wwwroot/audio", $"tts_{poiId}_{t.Language}.mp3"))
+        });
+
+        return Ok(result);
+    }
+
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        // 1. Lấy tất cả bản dịch ra memory trước
+        var allTranslations = await _db.Translations.ToListAsync();
+
+        // 2. Lấy tổng số POI hiện có để tính mẫu số (tổng số cần có)
+        var totalPois = await _db.Pois.CountAsync();
+
+        // 3. Nhóm và đếm những bản ghi THỰC SỰ có file audio
+        var byLanguage = allTranslations
+            .GroupBy(t => t.Language)
+            .Select(g => new {
+                Language = g.Key,
+                // Chỉ đếm những POI đã có file vật lý trên server
+                Count = g.Count(t => System.IO.File.Exists(Path.Combine("wwwroot/audio", $"tts_{t.PoiId}_{t.Language}.mp3"))),
+                TotalRequired = totalPois // Gửi thêm tổng số POI để Frontend tính %
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            TotalCompleted = byLanguage.Sum(x => x.Count),
+            ByLanguage = byLanguage
+        });
     }
 
     [HttpPost]
     public async Task<IActionResult> Save([FromBody] TranslationDto dto)
     {
-        var existing = await _db.Translations
-            .FirstOrDefaultAsync(t => t.PoiId == dto.PoiId && t.Language == dto.Language);
+        // 1. Lưu bản dịch gốc (ngôn ngữ mà người dùng vừa nhập)
+        await SaveSingle(dto.PoiId, dto.Language, dto.Text);
+        await _db.SaveChangesAsync();
 
-        if (existing != null)
+        // 2. Lấy danh sách ngôn ngữ ĐANG HỖ TRỢ từ Database
+        // Loại trừ ngôn ngữ gốc để không dịch đè lên chính nó
+        var targetLanguages = await _db.SupportedLanguages
+            .Where(l => l.Code != dto.Language)
+            .ToListAsync();
+
+        // 3. Vòng lặp dịch tự động sang tất cả các ngôn ngữ trong DB
+        foreach (var lang in targetLanguages)
         {
-            existing.Text = dto.Text;
-        }
-        else
-        {
-            _db.Translations.Add(new Translation
+            try
             {
-                PoiId = dto.PoiId,
-                Language = dto.Language,
-                Text = dto.Text
-            });
+                var translatedText = await _translator.TranslateAsync(dto.Text, dto.Language, lang.Code);
+                await SaveSingle(dto.PoiId, lang.Code, translatedText);
+            }
+            catch (Exception ex)
+            {
+                // Nếu lỗi 1 ngôn ngữ thì bỏ qua để dịch tiếp ngôn ngữ khác
+                Console.WriteLine($"Lỗi dịch sang {lang.Code}: {ex.Message}");
+            }
         }
 
         await _db.SaveChangesAsync();
-        return Ok();
+        return Ok(new { message = "Đã dịch thành công sang các ngôn ngữ hệ thống hỗ trợ!" });
     }
 
     [HttpDelete("{id}")]
@@ -57,6 +105,22 @@ public class TranslationController : ControllerBase
         _db.Translations.Remove(t);
         await _db.SaveChangesAsync();
         return Ok();
+    }
+
+    private async Task SaveSingle(int poiId, string language, string text)
+    {
+        var existing = await _db.Translations
+            .FirstOrDefaultAsync(t => t.PoiId == poiId && t.Language == language);
+
+        if (existing != null)
+            existing.Text = text;
+        else
+            _db.Translations.Add(new Translation
+            {
+                PoiId = poiId,
+                Language = language,
+                Text = text
+            });
     }
 }
 

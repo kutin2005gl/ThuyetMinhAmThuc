@@ -21,6 +21,10 @@
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+	  <EmbedAssembliesIntoApk>True</EmbedAssembliesIntoApk>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
 		<MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
@@ -31,6 +35,9 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.119.2" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls.Compatibility" Version="2.88.9" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.119.2" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -53,4 +60,11 @@
 	<ItemGroup>
 		<PackageReference Include="ZXing.Net.Maui.Controls" Version="0.6.0" />
 	</ItemGroup>
+<PropertyGroup Condition="$(TargetFramework.Contains('-android')) and '$(Configuration)' == 'Release'">
+  <RunAOTCompilation>false</RunAOTCompilation>
+  <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+  <AndroidLinkMode>None</AndroidLinkMode>
+  <PublishTrimmed>false</PublishTrimmed>
+  <AndroidPackageFormat>apk</AndroidPackageFormat>
+</PropertyGroup>
 </Project>

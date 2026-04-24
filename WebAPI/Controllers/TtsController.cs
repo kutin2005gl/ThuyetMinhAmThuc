@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using WebAPI.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using WebAPI.Data;
 
 namespace WebAPI.Controllers;
 
@@ -7,42 +8,50 @@ namespace WebAPI.Controllers;
 [Route("api/[controller]")]
 public class TtsController : ControllerBase
 {
-    private readonly ITtsGeneratorService _tts;
+    private readonly AppDbContext _db;
 
-    public TtsController(ITtsGeneratorService tts)
+    public TtsController(AppDbContext db)
     {
-        _tts = tts;
+        _db = db;
     }
 
     [HttpPost("generate")]
     public async Task<IActionResult> Generate([FromBody] TtsRequest request)
     {
+        if (request.PoiId <= 0)
+        {
+            return BadRequest(new { message = "PoiId không hợp lệ.", audioUrl = (string?)null });
+        }
+
         if (string.IsNullOrWhiteSpace(request.Text))
-            return BadRequest("Text không được để trống.");
+        {
+            return BadRequest(new { message = "Nội dung thuyết minh không được rỗng.", audioUrl = (string?)null });
+        }
 
-        var audioUrl = await _tts.GenerateAsync(
-            request.PoiId,
-            request.Text,
-            request.Language ?? "vi");
+        if (string.IsNullOrWhiteSpace(request.Language))
+        {
+            return BadRequest(new { message = "Language không được rỗng.", audioUrl = (string?)null });
+        }
 
-        return Ok(new { audioUrl, poiId = request.PoiId });
-    }
+        var poiExists = await _db.Pois.AnyAsync(p => p.Id == request.PoiId);
+        if (!poiExists)
+        {
+            return NotFound(new { message = $"Không tìm thấy POI #{request.PoiId}.", audioUrl = (string?)null });
+        }
 
-    [HttpGet("test")]
-    public IActionResult Test()
-    {
+        var language = request.Language.Trim().ToLowerInvariant();
+        var languageConfigured = await _db.SupportedLanguages.AnyAsync(l => l.Code == language);
+        if (!languageConfigured)
+        {
+            return BadRequest(new { message = $"Ngôn ngữ '{request.Language}' chưa được cấu hình.", audioUrl = (string?)null });
+        }
+
         return Ok(new
         {
-            message = "TTS API hoạt động bình thường",
-            voices = new[]
-            {
-                new { language = "vi", voice = "vi-VN-HoaiMyNeural" },
-                new { language = "en", voice = "en-US-JennyNeural" },
-                new { language = "zh", voice = "zh-CN-XiaoxiaoNeural" }
-            },
-            note = "Cần Azure Key để generate audio thật"
+            message = "Đã lưu/cập nhật nội dung thuyết minh. App mobile sẽ dùng Text-to-Speech trên thiết bị để đọc.",
+            audioUrl = (string?)null
         });
     }
 }
 
-public record TtsRequest(string PoiId, string Text, string? Language);
+public record TtsRequest(int PoiId, string Text, string Language);

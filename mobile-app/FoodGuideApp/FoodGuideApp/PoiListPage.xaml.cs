@@ -38,6 +38,7 @@ public partial class PoiListPage : ContentPage
             DisplayDescription = GetPoiTextByLanguage(p, currentLanguage)
         }).ToList();
     }
+
     private void ApplyLanguageToUI()
     {
         Title = LanguageManager.Get("POI", "POIs", "兴趣点", "POI", "POI", "POI");
@@ -58,11 +59,14 @@ public partial class PoiListPage : ContentPage
             using var httpClient = new HttpClient();
             httpClient.BaseAddress = new Uri($"{AppConfig.BaseUrl}/");
             GuestSessionService.AttachTo(httpClient);
+            httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
 
             var res = await httpClient.GetAsync("api/poi");
             res.EnsureSuccessStatusCode();
 
             var json = await res.Content.ReadAsStringAsync();
+
+            System.Diagnostics.Debug.WriteLine($"[POI LIST JSON] {json}");
 
             var options = new JsonSerializerOptions
             {
@@ -71,8 +75,9 @@ public partial class PoiListPage : ContentPage
 
             return JsonSerializer.Deserialize<List<Poi>>(json, options) ?? new List<Poi>();
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[POI LIST ERROR] {ex}");
             return new List<Poi>();
         }
     }
@@ -184,6 +189,7 @@ public partial class PoiListPage : ContentPage
         return latitude >= -90 && latitude <= 90 &&
                longitude >= -180 && longitude <= 180;
     }
+
     public class PoiListItemViewModel
     {
         public Poi Poi { get; set; } = new();

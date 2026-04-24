@@ -47,6 +47,7 @@
             Session.FullName = result.FullName;
             Session.Role = result.Role;
             Session.PoiId = result.PoiId;
+            Session.NotifyStateChanged();
             Nav.NavigateTo("/pois", forceLoad: false);
         }
         else
