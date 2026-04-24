@@ -67,6 +67,12 @@ public partial class QrScannerPage : ContentPage
         if (int.TryParse(rawValue, out poiId))
             return true;
 
+        if (rawValue.StartsWith("foodguide://", StringComparison.OrdinalIgnoreCase))
+        {
+            var path = rawValue.Replace("foodguide://", "");
+            return TryParsePoiIdFromPath(path, out poiId);
+        }
+
         if (rawValue.StartsWith("POI:", StringComparison.OrdinalIgnoreCase))
         {
             string idPart = rawValue.Substring(4).Trim();
