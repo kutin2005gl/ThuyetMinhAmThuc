@@ -95,7 +95,7 @@ public class PoiController : ControllerBase
 
     [HttpPost("{id}/upload-image")]
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> UploadImage(int id, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadImage([FromRoute] int id, IFormFile file)
     {
         var poi = await _db.Pois.FindAsync(id);
         if (poi == null) return NotFound();
