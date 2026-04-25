@@ -33,8 +33,8 @@
                    Text="Chưa có vị trí"
                    FontSize="20" />
 
-            <WebView x:Name="mapWebView"
-                     Navigated="OnMapWebViewNavigated"
+            <WebView x:Name="leafletWebView"
+                     Navigated="OnLeafletWebViewNavigated"
                      HeightRequest="400" />
 
             <Button x:Name="viewNearestPoiButton"

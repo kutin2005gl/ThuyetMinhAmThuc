@@ -22,7 +22,7 @@ namespace FoodGuideApp
         // HttpClient dùng để gọi API
         private readonly HttpClient httpClient = new HttpClient();
 
-        private bool isMapReady = false;
+        private bool isLeafletReady = false;
         private Poi? nearestPoiCurrent = null;
 
         // Thời điểm check POI gần nhất để tránh spam
@@ -43,7 +43,7 @@ namespace FoodGuideApp
         // Tránh chồng nhiều lệnh TTS cùng lúc
         //private bool isSpeaking = false;
         private HashSet<int> spokenPois = new();
-        private DateTime lastMapUpdateTime = DateTime.MinValue;
+        private DateTime lastLeafletUpdateTime = DateTime.MinValue;
         private readonly AudioQueueManager audioManager;
         private int? nearestPoiId = null;
         private bool isManualViewingPoi = false;
@@ -155,7 +155,7 @@ namespace FoodGuideApp
 
             // audio
             audioManager = new AudioQueueManager(audioFocusService);
-            mapWebView.Source = new HtmlWebViewSource
+            leafletWebView.Source = new HtmlWebViewSource
             {
                 Html = LeafletHtmlContent
             };
@@ -181,7 +181,7 @@ namespace FoodGuideApp
         {
             await LoadPois();
             InitializePoiStates();
-            await ShowPoisOnMap();
+            await ShowPoisOnLeaflet();
             await DrawGeofenceCircles();
         }
 
@@ -318,7 +318,7 @@ namespace FoodGuideApp
             // Reset trạng thái tracking
             isTracking = true;
             
-            lastMapUpdateTime = DateTime.MinValue;
+            lastLeafletUpdateTime = DateTime.MinValue;
             lastPoiCheckTime = DateTime.MinValue;
 
             trackingCts?.Cancel();
@@ -442,13 +442,13 @@ namespace FoodGuideApp
                             await CheckEnterPoi(location);
                         }
 
-                        if ((DateTime.Now - lastMapUpdateTime).TotalSeconds >= 1)
+                        if ((DateTime.Now - lastLeafletUpdateTime).TotalSeconds >= 1)
                         {
-                            lastMapUpdateTime = DateTime.Now;
+                            lastLeafletUpdateTime = DateTime.Now;
 
                             MainThread.BeginInvokeOnMainThread(() =>
                             {
-                                _ = MoveMapToLocation(location.Latitude, location.Longitude);
+                                _ = MoveLeafletToLocation(location.Latitude, location.Longitude);
                                 _ = ShowUserLocation(location.Latitude, location.Longitude);
                             });
                         }
@@ -868,25 +868,25 @@ namespace FoodGuideApp
             return "";
         }
 
-        private void OnMapWebViewNavigated(object sender, WebNavigatedEventArgs e)
+        private void OnLeafletWebViewNavigated(object sender, WebNavigatedEventArgs e)
         {
-            isMapReady = true;
-            _ = EvaluateMapScriptAsync("initMap();");
-            _ = RenderMapDataAsync();
+            isLeafletReady = true;
+            _ = EvaluateLeafletScriptAsync("initMap();");
+            _ = RenderLeafletDataAsync();
         }
 
         // Công dụng: di chuyển tâm bản đồ theo vị trí hiện tại của người dùng
-        private async Task MoveMapToLocation(double latitude, double longitude)
-            => await EvaluateMapScriptAsync($"setView({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 17);");
+        private async Task MoveLeafletToLocation(double latitude, double longitude)
+            => await EvaluateLeafletScriptAsync($"setView({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, 17);");
 
         // Công dụng: hiển thị marker vị trí hiện tại của người dùng trên bản đồ
         private async Task ShowUserLocation(double latitude, double longitude)
-            => await EvaluateMapScriptAsync($"setUserLocation({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)});");
+            => await EvaluateLeafletScriptAsync($"setUserLocation({latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)});");
 
         // Công dụng: hiển thị marker và tên các POI trên bản đồ
-        private async Task ShowPoisOnMap()
+        private async Task ShowPoisOnLeaflet()
         {
-            await RenderMapDataAsync();
+            await RenderLeafletDataAsync();
 
             var featureCount = geoPois.Count(p => IsValidCoordinate(p.Latitude, p.Longitude));
             MainThread.BeginInvokeOnMainThread(() =>
@@ -903,13 +903,13 @@ namespace FoodGuideApp
 
         //highlight POI gan nhat
         private async Task HighlightNearestPoi()
-            => await RenderMapDataAsync();
+            => await RenderLeafletDataAsync();
 
         // Công dụng: vẽ vòng tròn geofence của từng POI trên bản đồ
         private async Task DrawGeofenceCircles()
-            => await RenderMapDataAsync();
+            => await RenderLeafletDataAsync();
 
-        private async Task RenderMapDataAsync()
+        private async Task RenderLeafletDataAsync()
         {
             var mapPois = geoPois
                 .Where(p => IsValidCoordinate(p.Latitude, p.Longitude))
@@ -925,24 +925,24 @@ namespace FoodGuideApp
                 .ToList();
 
             var poiJson = JsonSerializer.Serialize(mapPois);
-            await EvaluateMapScriptAsync($"renderPois({JsonSerializer.Serialize(poiJson)});");
-            await EvaluateMapScriptAsync($"renderGeofences({JsonSerializer.Serialize(poiJson)});");
+            await EvaluateLeafletScriptAsync($"renderPois({JsonSerializer.Serialize(poiJson)});");
+            await EvaluateLeafletScriptAsync($"renderGeofences({JsonSerializer.Serialize(poiJson)});");
 
             var firstPoi = mapPois.FirstOrDefault();
             if (firstPoi != null)
             {
-                await MoveMapToLocation(firstPoi.lat, firstPoi.lng);
+                await MoveLeafletToLocation(firstPoi.lat, firstPoi.lng);
             }
         }
 
-        private async Task EvaluateMapScriptAsync(string script)
+        private async Task EvaluateLeafletScriptAsync(string script)
         {
-            if (!isMapReady)
+            if (!isLeafletReady)
                 return;
 
             try
             {
-                await mapWebView.EvaluateJavaScriptAsync(script);
+                await leafletWebView.EvaluateJavaScriptAsync(script);
             }
             catch (Exception ex)
             {
@@ -1257,7 +1257,7 @@ namespace FoodGuideApp
 
             // 🔥 Gọi lại hàm highlight sẵn có
             _ = HighlightNearestPoi();
-            _ = MoveMapToLocation(poi.Latitude, poi.Longitude);
+            _ = MoveLeafletToLocation(poi.Latitude, poi.Longitude);
         }
         private void ApplyLanguageToUI()
         {
