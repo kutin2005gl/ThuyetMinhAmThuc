@@ -30,9 +30,13 @@ public class AudioQueueManager
     // Job chờ quá lâu thì bỏ
     private readonly TimeSpan _staleJobWindow = TimeSpan.FromSeconds(15);
 
+    // Giữ cache dedupe vừa đủ để tránh phình bộ nhớ khi tracking lâu.
+    private readonly TimeSpan _dedupeRetention = TimeSpan.FromMinutes(5);
+
     private readonly IAudioFocusService _audioFocusService;
 
     private CancellationTokenSource? _currentSpeakCts;
+    private string? _currentPlayingKey;
     private bool _isProcessing = false;
     private readonly object _lock = new();
 
@@ -78,6 +82,15 @@ public class AudioQueueManager
         string key = BuildKey(job);
         var now = DateTime.UtcNow;
 
+        PruneDedupeCache(now);
+
+        // Chống queue thêm đúng POI/ngôn ngữ đang phát.
+        if (string.Equals(_currentPlayingKey, key, StringComparison.OrdinalIgnoreCase))
+        {
+            System.Diagnostics.Debug.WriteLine($"[AUDIO] Skip đang phát: {key}");
+            return;
+        }
+
         // Chống enqueue trùng liên tục do GPS rung
         if (_recentQueued.TryGetValue(key, out var lastQueued))
         {
@@ -110,12 +123,14 @@ public class AudioQueueManager
     {
         await foreach (var job in _channel.Reader.ReadAllAsync())
         {
+            string? key = null;
+
             try
             {
                 if (job == null || string.IsNullOrWhiteSpace(job.Text))
                     continue;
 
-                string key = BuildKey(job);
+                key = BuildKey(job);
 
                 // Bỏ job quá cũ
                 if (DateTime.UtcNow - job.CreatedAt > _staleJobWindow)
@@ -130,6 +145,8 @@ public class AudioQueueManager
                     System.Diagnostics.Debug.WriteLine($"[AUDIO] Bỏ job không còn hợp lệ: {key}");
                     continue;
                 }
+
+                _currentPlayingKey = key;
 
                 _currentSpeakCts?.Dispose();
                 _currentSpeakCts = new CancellationTokenSource();
@@ -173,6 +190,11 @@ public class AudioQueueManager
             }
             finally
             {
+                if (key != null && string.Equals(_currentPlayingKey, key, StringComparison.OrdinalIgnoreCase))
+                {
+                    _currentPlayingKey = null;
+                }
+
                 _audioFocusService.AbandonFocus();
             }
         }
@@ -183,6 +205,26 @@ public class AudioQueueManager
     {
         string language = (job.Language ?? "vi").Trim().ToLowerInvariant();
         return $"{job.PoiId}_{language}";
+    }
+
+    // Công dụng: dọn các mốc dedupe cũ để queue chạy lâu không giữ dữ liệu không cần thiết.
+    private void PruneDedupeCache(DateTime now)
+    {
+        foreach (var item in _recentQueued)
+        {
+            if (now - item.Value > _dedupeRetention)
+            {
+                _recentQueued.TryRemove(item.Key, out _);
+            }
+        }
+
+        foreach (var item in _recentPlayed)
+        {
+            if (now - item.Value > _dedupeRetention)
+            {
+                _recentPlayed.TryRemove(item.Key, out _);
+            }
+        }
     }
 
     // Công dụng: tìm locale TTS phù hợp với mã ngôn ngữ truyền vào.
@@ -252,6 +294,7 @@ public class AudioQueueManager
     {
         StopCurrent();
         ClearQueue();
+        _currentPlayingKey = null;
         _audioFocusService.AbandonFocus();
     }
 }

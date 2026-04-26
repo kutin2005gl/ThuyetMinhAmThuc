@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Microsoft.Maui.ApplicationModel;
 using FoodGuideApp.Models;
 using FoodGuideApp.Services;
 using Microsoft.Maui.Devices.Sensors;
@@ -24,6 +25,7 @@ public partial class PoiListPage : ContentPage
         pois = await LoadPois();
 
         string currentLanguage = Preferences.Get("app_language", "vi");
+        var currentLocation = await TryGetLocationForDistanceAsync();
 
         poiCollectionView.ItemsSource = pois.Select(p => new PoiListItemViewModel
         {
@@ -35,7 +37,11 @@ public partial class PoiListPage : ContentPage
                 "POI 없음",
                 "POIなし",
                 "Aucun POI"),
-            DisplayDescription = GetPoiTextByLanguage(p, currentLanguage)
+            DisplayDescription = GetPoiTextByLanguage(p, currentLanguage),
+            ImageUrl = p.ImageUrl ?? "",
+            HasImage = !string.IsNullOrWhiteSpace(p.ImageUrl),
+            HasNoImage = string.IsNullOrWhiteSpace(p.ImageUrl),
+            DisplayDistance = GetDisplayDistance(p, currentLocation)
         }).ToList();
     }
 
@@ -190,10 +196,57 @@ public partial class PoiListPage : ContentPage
                longitude >= -180 && longitude <= 180;
     }
 
+    private async Task<Location?> TryGetLocationForDistanceAsync()
+    {
+        try
+        {
+            var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+            if (status != PermissionStatus.Granted)
+            {
+                return null;
+            }
+
+            return await Geolocation.Default.GetLastKnownLocationAsync()
+                   ?? await Geolocation.Default.GetLocationAsync(
+                       new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(3)));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string GetDisplayDistance(Poi poi, Location? currentLocation)
+    {
+        if (currentLocation == null || !IsValidCoordinate(poi.Latitude, poi.Longitude))
+        {
+            return LanguageManager.Get(
+                "Chưa rõ",
+                "Unknown",
+                "未知",
+                "알 수 없음",
+                "不明",
+                "Inconnue");
+        }
+
+        double distanceMeters = Location.CalculateDistance(
+            currentLocation,
+            new Location(poi.Latitude, poi.Longitude),
+            DistanceUnits.Kilometers) * 1000;
+
+        return distanceMeters >= 1000
+            ? $"{distanceMeters / 1000:0.0} km"
+            : $"{distanceMeters:0} m";
+    }
+
     public class PoiListItemViewModel
     {
         public Poi Poi { get; set; } = new();
         public string DisplayName { get; set; } = "";
         public string DisplayDescription { get; set; } = "";
+        public string ImageUrl { get; set; } = "";
+        public bool HasImage { get; set; }
+        public bool HasNoImage { get; set; } = true;
+        public string DisplayDistance { get; set; } = "";
     }
 }

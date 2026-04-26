@@ -1,41 +1,85 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.TourPage"
-             Title="Tours">
+             Title="Tour"
+             BackgroundColor="#F4F7F6">
 
-    <Grid RowDefinitions="Auto,*" Padding="15">
+    <Grid RowDefinitions="Auto,*" Padding="20,18,20,0" RowSpacing="16">
 
-        <Label x:Name="pageTitleLabel"
-               FontSize="24"
-               FontAttributes="Bold"
-               TextColor="Black" />
+        <VerticalStackLayout Spacing="6">
+            <Label x:Name="pageTitleLabel"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="#0F172A" />
+
+            <Label Text="Khám phá các lộ trình gợi ý và những điểm dừng nổi bật."
+                   FontSize="14"
+                   TextColor="#64748B"
+                   LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
 
         <CollectionView x:Name="tourCollectionView"
                         Grid.Row="1"
-                        Margin="0,15,0,0"
                         SelectionMode="Single"
                         SelectionChanged="OnTourSelected">
+            <CollectionView.EmptyView>
+                <Border BackgroundColor="White"
+                        Stroke="#E2E8F0"
+                        StrokeShape="RoundRectangle 20"
+                        Padding="22"
+                        Margin="0,20">
+                    <Label Text="Chưa có dữ liệu tour"
+                           FontSize="16"
+                           TextColor="#64748B"
+                           HorizontalTextAlignment="Center" />
+                </Border>
+            </CollectionView.EmptyView>
+
             <CollectionView.ItemTemplate>
                 <DataTemplate>
-                    <Border Stroke="#DDDDDD"
+                    <Border Stroke="#E2E8F0"
                             StrokeThickness="1"
-                            StrokeShape="RoundRectangle 12"
-                            Padding="15"
-                            Margin="0,0,0,12">
-                        <VerticalStackLayout Spacing="8">
-                            <Label Text="{Binding DisplayName}"
-                                   FontSize="20"
-                                   FontAttributes="Bold"
-                                   TextColor="Black" />
+                            StrokeShape="RoundRectangle 22"
+                            BackgroundColor="White"
+                            Padding="16"
+                            Margin="0,0,0,14">
+                        <Border.Shadow>
+                            <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.09" />
+                        </Border.Shadow>
+
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                                <Border BackgroundColor="#FFFBEB"
+                                        Stroke="#FDE68A"
+                                        StrokeShape="RoundRectangle 16"
+                                        Padding="12,8"
+                                        VerticalOptions="Start">
+                                    <Label Text="Tour"
+                                           FontSize="13"
+                                           FontAttributes="Bold"
+                                           TextColor="#92400E" />
+                                </Border>
+
+                                <Label Grid.Column="1"
+                                       Text="{Binding DisplayName}"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       TextColor="#0F172A"
+                                       LineBreakMode="TailTruncation"
+                                       MaxLines="2" />
+                            </Grid>
 
                             <Label Text="{Binding DisplayDescription}"
                                    FontSize="14"
-                                   TextColor="Gray" />
+                                   TextColor="#64748B"
+                                   LineBreakMode="TailTruncation"
+                                   MaxLines="2" />
 
                             <Label Text="{Binding DisplayPoiCount}"
                                    FontSize="13"
-                                   TextColor="DarkSlateGray" />
+                                   FontAttributes="Bold"
+                                   TextColor="#0F766E" />
                         </VerticalStackLayout>
                     </Border>
                 </DataTemplate>

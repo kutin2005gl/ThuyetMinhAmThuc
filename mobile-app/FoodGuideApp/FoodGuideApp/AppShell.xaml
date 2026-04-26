@@ -9,25 +9,29 @@
         <ShellContent
             x:Name="homeTab"
             Route="Home"
-            Title="Home"
+            Title="Trang chủ"
+            Icon="home_tab.svg"
             ContentTemplate="{DataTemplate local:MainPage}" />
-
-        <ShellContent
-            x:Name="tourTab"
-            Route="Tours"
-            Title="Tours"
-            ContentTemplate="{DataTemplate local:TourPage}" />
 
         <ShellContent
             x:Name="poiTab"
             Route="POIs"
-            Title="POIs"
+            Title="POI"
+            Icon="poi_tab.svg"
             ContentTemplate="{DataTemplate local:PoiListPage}" />
+
+        <ShellContent
+            x:Name="tourTab"
+            Route="Tours"
+            Title="Tour"
+            Icon="tour_tab.svg"
+            ContentTemplate="{DataTemplate local:TourPage}" />
 
         <ShellContent
             x:Name="settingsTab"
             Route="Settings"
-            Title="Settings"
+            Title="Cài đặt"
+            Icon="settings_tab.svg"
             ContentTemplate="{DataTemplate local:SettingsPage}" />
     </TabBar>
 </Shell>

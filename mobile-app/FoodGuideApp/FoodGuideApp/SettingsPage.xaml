@@ -1,62 +1,78 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.SettingsPage"
              Title="Cài đặt"
-             BackgroundColor="#F5F7FB">
+             BackgroundColor="#F4F7F6">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="20,18,20,28" Spacing="18">
 
-            <!-- TITLE -->
-            <VerticalStackLayout Spacing="6">
-                <Label x:Name="titleLabel"
-                       Text="⚙️ Cài đặt"
-                       FontSize="28"
-                       FontAttributes="Bold"
-                       TextColor="#1F2937" />
+            <Border BackgroundColor="#0F172A"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 28"
+                    Padding="22">
+                <Border.Shadow>
+                    <Shadow Brush="#0F172A" Offset="0,12" Radius="24" Opacity="0.16" />
+                </Border.Shadow>
 
-                <Label x:Name="subTitleLabel"
-                       Text="Tùy chỉnh ngôn ngữ và bán kính geofence cho ứng dụng"
-                       FontSize="14"
-                       TextColor="#6B7280" />
-            </VerticalStackLayout>
+                <VerticalStackLayout Spacing="8">
+                    <Label x:Name="titleLabel"
+                           Text="Cài đặt"
+                           FontSize="30"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           LineBreakMode="WordWrap" />
 
-            <!-- CARD NGÔN NGỮ -->
-            <Frame CornerRadius="18"
-                   Padding="18"
-                   BackgroundColor="White"
-                   HasShadow="True">
+                    <Label x:Name="subTitleLabel"
+                           Text="Tùy chỉnh ngôn ngữ và bán kính geofence cho ứng dụng"
+                           FontSize="14"
+                           TextColor="#CBD5E1"
+                           LineBreakMode="WordWrap" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E2E8F0"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="18">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                </Border.Shadow>
 
                 <VerticalStackLayout Spacing="14">
+                    <VerticalStackLayout Spacing="4">
+                        <Label x:Name="languageTitleLabel"
+                               Text="Ngôn ngữ"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A" />
 
-                    <Label x:Name="languageTitleLabel"
-                           Text="Ngôn ngữ"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="#111827" />
+                        <Label x:Name="languageDescLabel"
+                               Text="Chọn ngôn ngữ hiển thị / thuyết minh"
+                               FontSize="14"
+                               TextColor="#64748B"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
 
-                    <Label x:Name="languageDescLabel"
-                           Text="Chọn ngôn ngữ hiển thị / thuyết minh"
-                           FontSize="13"
-                           TextColor="#6B7280" />
-
-                    <!-- VI -->
                     <Border x:Name="langViBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
+                            Stroke="#CBD5E1"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
                             BackgroundColor="#FFFFFF"
                             Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇻🇳"
-                                   FontSize="24"
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Label Text="VI"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F766E"
                                    VerticalOptions="Center" />
                             <Label Grid.Column="1"
                                    Text="Tiếng Việt"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
+                                   FontSize="16"
                                    FontAttributes="Bold"
+                                   TextColor="#0F172A"
                                    VerticalOptions="Center" />
                             <RadioButton x:Name="viRadioButton"
                                          Grid.Column="2"
@@ -66,21 +82,22 @@
                         </Grid>
                     </Border>
 
-                    <!-- EN -->
                     <Border x:Name="langEnBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
+                            Stroke="#CBD5E1"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
                             BackgroundColor="#FFFFFF"
                             Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇺🇸"
-                                   FontSize="24"
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Label Text="EN"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#2563EB"
                                    VerticalOptions="Center" />
                             <Label Grid.Column="1"
                                    Text="English"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
+                                   FontSize="16"
+                                   TextColor="#0F172A"
                                    VerticalOptions="Center" />
                             <RadioButton x:Name="enRadioButton"
                                          Grid.Column="2"
@@ -90,150 +107,153 @@
                         </Grid>
                     </Border>
 
-                    <!-- ZH -->
-                    <Border x:Name="langZhBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
-                            BackgroundColor="#FFFFFF"
-                            Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇨🇳"
-                                   FontSize="24"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="中文"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
-                                   VerticalOptions="Center" />
-                            <RadioButton x:Name="zhRadioButton"
-                                         Grid.Column="2"
-                                         GroupName="Language"
-                                         Value="zh"
-                                         CheckedChanged="OnLanguageChecked" />
-                        </Grid>
-                    </Border>
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+                        <Border x:Name="langZhBorder"
+                                Stroke="#CBD5E1"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#FFFFFF"
+                                Padding="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="中文"
+                                       FontSize="16"
+                                       TextColor="#0F172A"
+                                       VerticalOptions="Center" />
+                                <RadioButton x:Name="zhRadioButton"
+                                             Grid.Column="1"
+                                             GroupName="Language"
+                                             Value="zh"
+                                             CheckedChanged="OnLanguageChecked" />
+                            </Grid>
+                        </Border>
 
-                    <!-- KO -->
-                    <Border x:Name="langKoBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
-                            BackgroundColor="#FFFFFF"
-                            Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇰🇷"
-                                   FontSize="24"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="한국어"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
-                                   VerticalOptions="Center" />
-                            <RadioButton x:Name="koRadioButton"
-                                         Grid.Column="2"
-                                         GroupName="Language"
-                                         Value="ko"
-                                         CheckedChanged="OnLanguageChecked" />
-                        </Grid>
-                    </Border>
+                        <Border x:Name="langKoBorder"
+                                Grid.Column="1"
+                                Stroke="#CBD5E1"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#FFFFFF"
+                                Padding="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="한국어"
+                                       FontSize="16"
+                                       TextColor="#0F172A"
+                                       VerticalOptions="Center" />
+                                <RadioButton x:Name="koRadioButton"
+                                             Grid.Column="1"
+                                             GroupName="Language"
+                                             Value="ko"
+                                             CheckedChanged="OnLanguageChecked" />
+                            </Grid>
+                        </Border>
 
-                    <!-- JA -->
-                    <Border x:Name="langJaBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
-                            BackgroundColor="#FFFFFF"
-                            Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇯🇵"
-                                   FontSize="24"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="日本語"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
-                                   VerticalOptions="Center" />
-                            <RadioButton x:Name="jaRadioButton"
-                                         Grid.Column="2"
-                                         GroupName="Language"
-                                         Value="ja"
-                                         CheckedChanged="OnLanguageChecked" />
-                        </Grid>
-                    </Border>
+                        <Border x:Name="langJaBorder"
+                                Grid.Row="1"
+                                Stroke="#CBD5E1"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#FFFFFF"
+                                Padding="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="日本語"
+                                       FontSize="16"
+                                       TextColor="#0F172A"
+                                       VerticalOptions="Center" />
+                                <RadioButton x:Name="jaRadioButton"
+                                             Grid.Column="1"
+                                             GroupName="Language"
+                                             Value="ja"
+                                             CheckedChanged="OnLanguageChecked" />
+                            </Grid>
+                        </Border>
 
-                    <!-- FR -->
-                    <Border x:Name="langFrBorder"
-                            Stroke="#D1D5DB"
-                            StrokeThickness="1.5"
-                            StrokeShape="RoundRectangle 14"
-                            BackgroundColor="#FFFFFF"
-                            Padding="14">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <Label Text="🇫🇷"
-                                   FontSize="24"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="Français"
-                                   Margin="12,0,0,0"
-                                   FontSize="17"
-                                   VerticalOptions="Center" />
-                            <RadioButton x:Name="frRadioButton"
-                                         Grid.Column="2"
-                                         GroupName="Language"
-                                         Value="fr"
-                                         CheckedChanged="OnLanguageChecked" />
-                        </Grid>
-                    </Border>
-
+                        <Border x:Name="langFrBorder"
+                                Grid.Row="1"
+                                Grid.Column="1"
+                                Stroke="#CBD5E1"
+                                StrokeThickness="1"
+                                StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#FFFFFF"
+                                Padding="14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Français"
+                                       FontSize="16"
+                                       TextColor="#0F172A"
+                                       VerticalOptions="Center" />
+                                <RadioButton x:Name="frRadioButton"
+                                             Grid.Column="1"
+                                             GroupName="Language"
+                                             Value="fr"
+                                             CheckedChanged="OnLanguageChecked" />
+                            </Grid>
+                        </Border>
+                    </Grid>
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
-            <!-- CARD GEOFENCE -->
-            <Frame CornerRadius="18"
-                   Padding="18"
-                   BackgroundColor="White"
-                   HasShadow="True">
+            <Border BackgroundColor="White"
+                    Stroke="#E2E8F0"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="18">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                </Border.Shadow>
 
                 <VerticalStackLayout Spacing="12">
-
                     <Label x:Name="radiusTitleLabel"
                            Text="Bán kính geofence"
-                           FontSize="18"
+                           FontSize="20"
                            FontAttributes="Bold"
-                           TextColor="#111827" />
+                           TextColor="#0F172A" />
 
                     <Label x:Name="radiusHintLabel"
                            Text="Nhập khoảng cách kích hoạt thuyết minh khi đến gần POI"
-                           FontSize="13"
-                           TextColor="#6B7280" />
+                           FontSize="14"
+                           TextColor="#64748B"
+                           LineBreakMode="WordWrap" />
 
-                    <Entry x:Name="radiusEntry"
-                           Placeholder="Ví dụ: 30"
-                           Keyboard="Numeric"
-                           TextColor="#111827" />
+                    <Border Stroke="#CBD5E1"
+                            StrokeThickness="1"
+                            StrokeShape="RoundRectangle 16"
+                            BackgroundColor="#F8FAFC"
+                            Padding="12,2">
+                        <Entry x:Name="radiusEntry"
+                               Placeholder="Ví dụ: 30"
+                               Keyboard="Numeric"
+                               TextColor="#0F172A"
+                               PlaceholderColor="#94A3B8"
+                               BackgroundColor="Transparent" />
+                    </Border>
 
                     <Label x:Name="radiusSuggestLabel"
                            Text="Gợi ý: 20–40m ngoài trời, 10–20m khu vực đông/nhỏ"
                            FontSize="12"
-                           TextColor="#9CA3AF" />
-
+                           TextColor="#94A3B8"
+                           LineBreakMode="WordWrap" />
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
-            <!-- BUTTON -->
             <Button x:Name="saveButton"
                     Text="Lưu cài đặt"
                     Clicked="OnSaveSettingsClicked"
-                    HeightRequest="50"
-                    BackgroundColor="#2563EB"
-                    TextColor="White" />
+                    HeightRequest="52"
+                    CornerRadius="18"
+                    BackgroundColor="#0F766E"
+                    TextColor="White"
+                    FontAttributes="Bold" />
 
-            <!-- STATUS -->
-            <Label x:Name="statusLabel"
-                   Text="Chưa có thay đổi"
-                   TextColor="Green"
-                   FontSize="14" />
+            <Border BackgroundColor="#ECFDF5"
+                    Stroke="#A7F3D0"
+                    StrokeShape="RoundRectangle 16"
+                    Padding="14">
+                <Label x:Name="statusLabel"
+                       Text="Chưa có thay đổi"
+                       TextColor="#047857"
+                       FontAttributes="Bold"
+                       FontSize="14"
+                       LineBreakMode="WordWrap" />
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

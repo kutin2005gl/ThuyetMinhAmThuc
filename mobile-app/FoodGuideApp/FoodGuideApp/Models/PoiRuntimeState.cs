@@ -6,5 +6,6 @@
         public bool WasNear { get; set; } = false;
 
         public DateTime LastTriggeredAt { get; set; } = DateTime.MinValue;
+        public DateTime LastNearAlertAt { get; set; } = DateTime.MinValue;
     }
 }   

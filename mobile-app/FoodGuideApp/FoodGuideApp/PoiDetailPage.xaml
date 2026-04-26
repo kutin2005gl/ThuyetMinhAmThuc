@@ -1,33 +1,83 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.PoiDetailPage"
-             Title="Chi tiết POI">
+             Title="Chi tiết POI"
+             BackgroundColor="#F4F7F6">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+        <VerticalStackLayout Padding="20,18,20,28" Spacing="16">
 
-            <Label x:Name="titleLabel"
-                   Text="Tên POI"
-                   FontSize="28"
-                   FontAttributes="Bold"
-                   TextColor="Black" />
+            <Border StrokeThickness="0"
+                    StrokeShape="RoundRectangle 28"
+                    BackgroundColor="White"
+                    Padding="0">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,10" Radius="22" Opacity="0.12" />
+                </Border.Shadow>
 
-            <Image x:Name="poiImage"
-                   HeightRequest="220"
-                   Aspect="AspectFill"
-                   IsVisible="False" />
+                <Grid RowDefinitions="220,Auto">
+                    <Grid BackgroundColor="#0F766E" HeightRequest="220">
+                        <Label Text="POI"
+                               FontSize="32"
+                               FontAttributes="Bold"
+                               TextColor="White"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+                    </Grid>
 
-            <Label x:Name="distanceLabel"
-                   Text="Khoảng cách: --"
-                   FontSize="16"
-                   TextColor="Gray" />
+                    <Image x:Name="poiImage"
+                           HeightRequest="220"
+                           Aspect="AspectFill"
+                           IsVisible="False" />
 
-            <Label x:Name="descriptionLabel"
-                   Text="Mô tả POI"
-                   FontSize="18"
-                   LineBreakMode="WordWrap"
-                   TextColor="Black" />
+                    <VerticalStackLayout Grid.Row="1"
+                                         Padding="18"
+                                         Spacing="10">
+                        <Label x:Name="titleLabel"
+                               Text="Tên POI"
+                               FontSize="28"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A"
+                               LineBreakMode="WordWrap" />
+
+                        <Border BackgroundColor="#ECFDF5"
+                                Stroke="#A7F3D0"
+                                StrokeShape="RoundRectangle 14"
+                                Padding="10,6"
+                                HorizontalOptions="Start">
+                            <Label x:Name="distanceLabel"
+                                   Text="Khoảng cách: --"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#047857" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E2E8F0"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 22"
+                    Padding="18">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                </Border.Shadow>
+
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Mô tả"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#0F172A" />
+
+                    <Label x:Name="descriptionLabel"
+                           Text="Mô tả POI"
+                           FontSize="16"
+                           LineBreakMode="WordWrap"
+                           TextColor="#334155" />
+                </VerticalStackLayout>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

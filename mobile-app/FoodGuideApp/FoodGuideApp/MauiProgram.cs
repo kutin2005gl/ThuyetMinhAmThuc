@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using FoodGuideApp.Services;
-using SkiaSharp.Views.Maui.Controls.Hosting;
 using ZXing.Net.Maui.Controls;
 
 namespace FoodGuideApp
@@ -13,7 +12,6 @@ namespace FoodGuideApp
 
             builder
                 .UseMauiApp<App>()
-                .UseSkiaSharp()
                 .UseBarcodeReader()
                 .ConfigureFonts(fonts =>
                 {
@@ -26,8 +24,10 @@ namespace FoodGuideApp
 
 #if ANDROID
             builder.Services.AddSingleton<IAudioFocusService, AndroidAudioFocusService>();
+            builder.Services.AddSingleton<IForegroundTrackingService, AndroidForegroundTrackingService>();
 #else
             builder.Services.AddSingleton<IAudioFocusService, NullAudioFocusService>();
+            builder.Services.AddSingleton<IForegroundTrackingService, NullForegroundTrackingService>();
 #endif
 
             builder.Services.AddSingleton<AppShell>();

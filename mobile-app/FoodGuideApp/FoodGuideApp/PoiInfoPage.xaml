@@ -1,49 +1,150 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.PoiInfoPage"
              Title="POI"
-             BackgroundColor="#F5F7FB">
+             BackgroundColor="#F4F7F6">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="15">
+        <VerticalStackLayout Padding="20,18,20,28" Spacing="16">
 
-            <Label x:Name="poiNameLabel"
-                   Text="Chưa có POI"
-                   FontSize="28"
-                   FontAttributes="Bold"
-                   TextColor="Black" />
+            <Border StrokeThickness="0"
+                    StrokeShape="RoundRectangle 28"
+                    BackgroundColor="#0F172A"
+                    Padding="0">
+                <Border.Shadow>
+                    <Shadow Brush="#0F172A" Offset="0,12" Radius="24" Opacity="0.18" />
+                </Border.Shadow>
 
-            <Image x:Name="poiImage"
-                   HeightRequest="220"
-                   Aspect="AspectFill"
-                   IsVisible="False" />
+                <Grid RowDefinitions="220,Auto">
+                    <Grid BackgroundColor="#0F766E"
+                          HeightRequest="220">
+                        <VerticalStackLayout HorizontalOptions="Center"
+                                             VerticalOptions="Center"
+                                             Spacing="6">
+                            <Label Text="POI"
+                                   FontSize="30"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Thuyết minh ẩm thực"
+                                   FontSize="14"
+                                   TextColor="#CCFBF1"
+                                   HorizontalTextAlignment="Center" />
+                        </VerticalStackLayout>
+                    </Grid>
 
-            <Label x:Name="poiDistanceLabel"
-                   Text="Khoảng cách: --"
-                   FontSize="16"
-                   TextColor="Gray" />
+                    <Image x:Name="poiImage"
+                           HeightRequest="220"
+                           Aspect="AspectFill"
+                           IsVisible="False" />
 
-            <Label x:Name="poiDescriptionLabel"
-                   Text="Mô tả POI sẽ hiển thị ở đây"
-                   FontSize="18"
-                   LineBreakMode="WordWrap"
-                   TextColor="Black" />
+                    <VerticalStackLayout Grid.Row="1"
+                                         Padding="18"
+                                         Spacing="10"
+                                         BackgroundColor="White">
+                        <Label x:Name="poiNameLabel"
+                               Text="Chưa có POI"
+                               FontSize="28"
+                               FontAttributes="Bold"
+                               TextColor="#0F172A"
+                               LineBreakMode="WordWrap" />
 
-            <Label x:Name="audioStatusLabel"
-                   Text="Chưa phát audio"
-                   FontSize="16"
-                   TextColor="DarkBlue" />
+                        <Border BackgroundColor="#ECFDF5"
+                                Stroke="#A7F3D0"
+                                StrokeShape="RoundRectangle 14"
+                                Padding="10,6"
+                                HorizontalOptions="Start">
+                            <Label x:Name="poiDistanceLabel"
+                                   Text="Khoảng cách: --"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="#047857" />
+                        </Border>
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
 
-            <HorizontalStackLayout Spacing="12">
-                <Button x:Name="replayButton"
-                        Clicked="OnReplayClicked"
-                        HorizontalOptions="FillAndExpand" />
+            <Border BackgroundColor="White"
+                    Stroke="#E2E8F0"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 22"
+                    Padding="18">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                </Border.Shadow>
 
-                <Button x:Name="stopButton"
-                        Clicked="OnStopClicked"
-                        HorizontalOptions="FillAndExpand" />
-            </HorizontalStackLayout>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Mô tả"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="#0F172A" />
+
+                    <Label x:Name="poiDescriptionLabel"
+                           Text="Mô tả POI sẽ hiển thị ở đây"
+                           FontSize="16"
+                           LineBreakMode="WordWrap"
+                           TextColor="#334155" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E2E8F0"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 22"
+                    Padding="18">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                </Border.Shadow>
+
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="3">
+                            <Label Text="Âm thanh thuyết minh"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="#0F172A" />
+
+                            <Label x:Name="audioStatusLabel"
+                                   Text="Chưa phát audio"
+                                   FontSize="14"
+                                   TextColor="#2563EB"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#EEF2FF"
+                                Stroke="#C7D2FE"
+                                StrokeShape="RoundRectangle 14"
+                                Padding="10,6"
+                                VerticalOptions="Start">
+                            <Label Text="TTS"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#3730A3" />
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                        <Button x:Name="replayButton"
+                                Clicked="OnReplayClicked"
+                                BackgroundColor="#0F766E"
+                                TextColor="White"
+                                CornerRadius="16"
+                                FontAttributes="Bold"
+                                HeightRequest="50" />
+
+                        <Button x:Name="stopButton"
+                                Grid.Column="1"
+                                Clicked="OnStopClicked"
+                                BackgroundColor="#FEE2E2"
+                                TextColor="#B91C1C"
+                                CornerRadius="16"
+                                FontAttributes="Bold"
+                                HeightRequest="50" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
 
         </VerticalStackLayout>
     </ScrollView>

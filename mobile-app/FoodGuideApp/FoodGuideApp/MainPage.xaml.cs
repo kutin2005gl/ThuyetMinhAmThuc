@@ -27,12 +27,19 @@ namespace FoodGuideApp
 
         // Thời điểm check POI gần nhất để tránh spam
         private DateTime lastPoiCheckTime = DateTime.MinValue;
+        private DateTime lastAnalyticsLocationTime = DateTime.MinValue;
 
         // Debounce kiểm tra POI
-        private readonly TimeSpan poiDebounce = TimeSpan.FromSeconds(1);
+        private readonly TimeSpan poiDebounce = TimeSpan.FromSeconds(2);
 
         // Cooldown tránh TTS đọc lặp liên tục
         private readonly TimeSpan poiCooldown = TimeSpan.FromSeconds(5);
+        private readonly TimeSpan nearPoiAlertCooldown = TimeSpan.FromSeconds(20);
+        private readonly TimeSpan trackingInterval = TimeSpan.FromSeconds(4);
+        private readonly TimeSpan trackingRetryInterval = TimeSpan.FromSeconds(8);
+        private readonly TimeSpan locationTimeout = TimeSpan.FromSeconds(6);
+        private readonly TimeSpan locationRetryDelay = TimeSpan.FromMilliseconds(700);
+        private readonly TimeSpan analyticsLocationInterval = TimeSpan.FromSeconds(15);
 
         // Ngôn ngữ hiện tại đang chọn
         private string currentLanguage = "vi";
@@ -45,6 +52,7 @@ namespace FoodGuideApp
         private HashSet<int> spokenPois = new();
         private DateTime lastMapUpdateTime = DateTime.MinValue;
         private readonly AudioQueueManager audioManager;
+        private readonly IForegroundTrackingService foregroundTrackingService;
         private int? nearestPoiId = null;
         private bool isManualViewingPoi = false;
         private int? stablePoiId = null;
@@ -141,9 +149,10 @@ namespace FoodGuideApp
 </body>
 </html>
 """;
-        public MainPage(IAudioFocusService audioFocusService)
+        public MainPage(IAudioFocusService audioFocusService, IForegroundTrackingService foregroundTrackingService)
         {
             InitializeComponent();
+            this.foregroundTrackingService = foregroundTrackingService;
 
             // 🔥 KHỞI TẠO HTTP CLIENT + FIX NGROK
             httpClient = new HttpClient
@@ -155,6 +164,11 @@ namespace FoodGuideApp
 
             // audio
             audioManager = new AudioQueueManager(audioFocusService);
+            audioManager.IsStillRelevant = poiId =>
+                !isTracking ||
+                stablePoiId == poiId ||
+                nearestPoiId == poiId;
+
             mapWebView.Source = new HtmlWebViewSource
             {
                 Html = LeafletHtmlContent
@@ -320,20 +334,35 @@ namespace FoodGuideApp
             
             lastMapUpdateTime = DateTime.MinValue;
             lastPoiCheckTime = DateTime.MinValue;
+            lastAnalyticsLocationTime = DateTime.MinValue;
 
             trackingCts?.Cancel();
             trackingCts = new CancellationTokenSource();
 
-            _ = Task.Run(StartTracking);
+            try
+            {
+                foregroundTrackingService.Start();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[FOREGROUND TRACKING ERROR] {ex.Message}");
+            }
+
+            _ = Task.Run(() => StartTracking(trackingCts.Token));
         }
         // Công dụng: xử lý khi bấm nút dừng theo dõi vị trí
         private void OnStopTrackingClicked(object sender, EventArgs e)
         {
             if (!isTracking) return;
             audioManager.StopAll();
+            foregroundTrackingService.Stop();
             isTracking = false;
             trackingCts.Cancel();
             trackingCts = new CancellationTokenSource();
+            stablePoiId = null;
+            pendingPoiId = null;
+            pendingPoiSince = DateTime.MinValue;
+            nearestPoiId = null;
 
             foreach (var state in poiStates.Values)
             {
@@ -361,21 +390,23 @@ namespace FoodGuideApp
             });
         }
 
-        // Công dụng: vòng lặp theo dõi vị trí liên tục, cập nhật map, near POI và enter geofence
-        private async Task StartTracking()
+        // Công dụng: vòng lặp theo dõi vị trí foreground theo nhịp ổn định, có retry/cooldown để giảm hao pin.
+        private async Task StartTracking(CancellationToken cancellationToken)
         {
             int nullLocationCount = 0;
 
-            while (!trackingCts.Token.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
+                var nextDelay = trackingInterval;
+
                 try
                 {
-                    var location = await GetLocation();
+                    var location = await GetLocation(cancellationToken);
 
                     if (location != null)
                     {
                         nullLocationCount = 0;
-                        _ = analytics.TrackLocation(location.Latitude, location.Longitude);
+                        TrackLocationIfNeeded(location);
                         Debug.WriteLine($"[TRACKING] Current: {location.Latitude}, {location.Longitude}");
                         Debug.WriteLine($"[UI CHECK] Lat={location.Latitude:F6}, Lng={location.Longitude:F6}");
                         string nearbyName = geoPois.Count > 0 ? GetNearbyPoiName(location) : "";
@@ -442,7 +473,7 @@ namespace FoodGuideApp
                             await CheckEnterPoi(location);
                         }
 
-                        if ((DateTime.Now - lastMapUpdateTime).TotalSeconds >= 1)
+                        if (DateTime.Now - lastMapUpdateTime >= trackingInterval)
                         {
                             lastMapUpdateTime = DateTime.Now;
 
@@ -456,6 +487,7 @@ namespace FoodGuideApp
                     else
                     {
                         nullLocationCount++;
+                        nextDelay = trackingRetryInterval;
                         Debug.WriteLine($"[TRACKING] location null lần {nullLocationCount}");
 
                         if (nullLocationCount >= 3)
@@ -473,7 +505,7 @@ namespace FoodGuideApp
                         }
                     }
 
-                    await Task.Delay(1000, trackingCts.Token);
+                    await Task.Delay(nextDelay, cancellationToken);
                 }
                 catch (TaskCanceledException)
                 {
@@ -494,24 +526,46 @@ namespace FoodGuideApp
                              $"Erreur de suivi : {ex.Message}");
                     });
 
-                    break;
+                    try
+                    {
+                        await Task.Delay(trackingRetryInterval, cancellationToken);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
                 }
             }
         }
-        // Công dụng: lấy vị trí hiện tại của thiết bị
-        private async Task<SensorLocation?> GetLocation()
+
+        // Công dụng: gửi vị trí lên analytics theo cooldown để không spam API và tiết kiệm pin/mạng.
+        private void TrackLocationIfNeeded(SensorLocation location)
+        {
+            var now = DateTime.UtcNow;
+            if (now - lastAnalyticsLocationTime < analyticsLocationInterval)
+            {
+                return;
+            }
+
+            lastAnalyticsLocationTime = now;
+            _ = analytics.TrackLocation(location.Latitude, location.Longitude);
+        }
+
+        // Công dụng: lấy vị trí hiện tại của thiết bị với timeout/retry và fallback vị trí gần nhất còn mới.
+        private async Task<SensorLocation?> GetLocation(CancellationToken cancellationToken = default)
         {
             try
             {
                 var request = new GeolocationRequest(
                     GeolocationAccuracy.Best,
-                    TimeSpan.FromSeconds(5));
+                    locationTimeout);
 
                 Location? location = null;
 
-                for (int i = 1; i <= 3; i++)
+                for (int i = 1; i <= 2; i++)
                 {
-                    location = await Geolocation.Default.GetLocationAsync(request);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    location = await Geolocation.Default.GetLocationAsync(request, cancellationToken);
 
                     if (location != null)
                     {
@@ -520,11 +574,22 @@ namespace FoodGuideApp
                     }
 
                     Debug.WriteLine($"[LOCATION] null lần {i}, thử lại...");
-                    await Task.Delay(500);
+                    await Task.Delay(locationRetryDelay, cancellationToken);
                 }
 
-                Debug.WriteLine("[LOCATION] null sau 3 lần thử");
+                var lastKnown = await Geolocation.Default.GetLastKnownLocationAsync();
+                if (lastKnown != null && DateTimeOffset.UtcNow - lastKnown.Timestamp <= TimeSpan.FromMinutes(2))
+                {
+                    Debug.WriteLine($"[LOCATION] Dùng last known: {lastKnown.Latitude}, {lastKnown.Longitude}");
+                    return new SensorLocation(lastKnown.Latitude, lastKnown.Longitude);
+                }
+
+                Debug.WriteLine("[LOCATION] null sau các lần thử");
                 return null;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -572,14 +637,8 @@ namespace FoodGuideApp
                 if (!isInside)
                     continue;
 
-                // Ưu tiên:
-                // 1) gần hơn
-                // 2) nếu gần gần bằng nhau (<= 3m) thì Priority cao hơn
-                // 3) nếu vẫn bằng thì Id nhỏ hơn để ổn định
-                if (bestPoi == null ||
-                    distanceMeters < bestDistance ||
-                    (Math.Abs(distanceMeters - bestDistance) <= 3 && poi.Priority > bestPoi.Priority) ||
-                    (Math.Abs(distanceMeters - bestDistance) <= 3 && poi.Priority == bestPoi.Priority && poi.Id < bestPoi.Id))
+                // Ưu tiên: Priority cao hơn, nếu bằng thì gần hơn, nếu vẫn bằng thì giữ POI ổn định.
+                if (IsBetterPoiCandidate(poi, distanceMeters, bestPoi, bestDistance))
                 {
                     bestPoi = poi;
                     bestDistance = distanceMeters;
@@ -768,9 +827,7 @@ namespace FoodGuideApp
                 // Chỉ tính là "đến gần" khi ở gần nhưng chưa vào hẳn geofence
                 if (isNear && !isInside)
                 {
-                    if (bestPoi == null ||
-                        poi.Priority > bestPoi.Priority ||
-                        (poi.Priority == bestPoi.Priority && distanceMeters < bestDistance))
+                    if (IsBetterPoiCandidate(poi, distanceMeters, bestPoi, bestDistance))
                     {
                         bestPoi = poi;
                         bestDistance = distanceMeters;
@@ -797,9 +854,13 @@ namespace FoodGuideApp
                 {
                     hasBestNearPoi = true;
 
-                    if (!state.WasNear)
+                    var now = DateTime.Now;
+                    var canNotifyNear = now - state.LastNearAlertAt >= nearPoiAlertCooldown;
+
+                    if (!state.WasNear && canNotifyNear)
                     {
                         state.WasNear = true;
+                        state.LastNearAlertAt = now;
 
                         MainThread.BeginInvokeOnMainThread(() =>
                         {
@@ -1344,6 +1405,42 @@ namespace FoodGuideApp
                     "Hors de la zone geofence");
             }
         }
+        // Công dụng: so sánh ứng viên POI theo Priority, khoảng cách, rồi ưu tiên POI đang ổn định để tránh nhảy liên tục.
+        private bool IsBetterPoiCandidate(Poi candidate, double candidateDistance, Poi? currentBest, double currentBestDistance)
+        {
+            if (currentBest == null)
+            {
+                return true;
+            }
+
+            if (candidate.Priority != currentBest.Priority)
+            {
+                return candidate.Priority > currentBest.Priority;
+            }
+
+            const double sameDistanceToleranceMeters = 3;
+            var distanceDelta = candidateDistance - currentBestDistance;
+            if (Math.Abs(distanceDelta) > sameDistanceToleranceMeters)
+            {
+                return candidateDistance < currentBestDistance;
+            }
+
+            if (stablePoiId.HasValue)
+            {
+                if (candidate.Id == stablePoiId.Value && currentBest.Id != stablePoiId.Value)
+                {
+                    return true;
+                }
+
+                if (currentBest.Id == stablePoiId.Value && candidate.Id != stablePoiId.Value)
+                {
+                    return false;
+                }
+            }
+
+            return candidate.Id < currentBest.Id;
+        }
+
         // Công dụng: chọn POI ổn định theo thời gian, tránh nhảy liên tục giữa 2 POI
         private Poi? ResolveStablePoi(Poi? candidatePoi)
         {
@@ -1370,6 +1467,15 @@ namespace FoodGuideApp
             // Nếu ứng viên hiện tại chính là POI đang ổn định thì giữ nguyên
             if (candidatePoi.Id == stablePoiId.Value)
             {
+                pendingPoiId = null;
+                pendingPoiSince = DateTime.MinValue;
+                return candidatePoi;
+            }
+
+            var currentStablePoi = geoPois.FirstOrDefault(p => p.Id == stablePoiId.Value);
+            if (currentStablePoi != null && candidatePoi.Priority > currentStablePoi.Priority)
+            {
+                stablePoiId = candidatePoi.Id;
                 pendingPoiId = null;
                 pendingPoiSince = DateTime.MinValue;
                 return candidatePoi;
