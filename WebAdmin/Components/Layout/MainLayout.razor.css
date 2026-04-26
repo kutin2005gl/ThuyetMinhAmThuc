@@ -6,19 +6,37 @@
 
 main {
     flex: 1;
+    background: #f4f7fb;
+    min-height: 100vh;
 }
 
 .sidebar {
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    background: linear-gradient(180deg, #0f172a 0%, #0f766e 100%);
 }
 
 .top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    justify-content: flex-end;
+    background-color: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f172a;
+    justify-content: space-between;
     height: 3.5rem;
     display: flex;
     align-items: center;
+}
+
+.top-row-title {
+    font-weight: 800;
+}
+
+.top-row-status {
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 999px;
+    color: #047857;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 0.35rem 0.7rem;
 }
 
     .top-row ::deep a, .top-row ::deep .btn-link {

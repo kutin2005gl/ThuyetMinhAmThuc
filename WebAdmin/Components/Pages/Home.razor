@@ -1,7 +1,58 @@
-﻿@page "/"
+@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="admin-home">
+    <section class="home-hero">
+        <div>
+            <p class="eyebrow">FoodGuide WebAdmin</p>
+            <h1>Dashboard quản trị thuyết minh ẩm thực</h1>
+            <p class="hero-copy">
+                Theo dõi vận hành, quản lý POI, tour, audio và dữ liệu sử dụng từ một giao diện gọn gàng hơn.
+            </p>
+        </div>
+        <div class="hero-actions">
+            <a class="primary-action" href="monitoring">
+                <i class="bi bi-activity"></i>
+                Monitoring
+            </a>
+            <a class="secondary-action" href="analytics">
+                <i class="bi bi-bar-chart"></i>
+                Thống kê
+            </a>
+        </div>
+    </section>
 
-Welcome to your new app.
+    <section class="quick-grid" aria-label="Lối tắt quản trị">
+        <a class="quick-card" href="pois">
+            <i class="bi bi-geo-alt"></i>
+            <strong>Quản lý POI</strong>
+            <span>Địa điểm, hình ảnh, tọa độ và bán kính.</span>
+        </a>
+        <a class="quick-card" href="translations">
+            <i class="bi bi-chat-square-text"></i>
+            <strong>Nội dung thuyết minh</strong>
+            <span>Bản dịch và mô tả theo ngôn ngữ.</span>
+        </a>
+        <a class="quick-card" href="audio">
+            <i class="bi bi-music-note-beamed"></i>
+            <strong>Audio</strong>
+            <span>Quản lý file nghe và nội dung phát.</span>
+        </a>
+        <a class="quick-card" href="qr">
+            <i class="bi bi-qr-code-scan"></i>
+            <strong>QR</strong>
+            <span>Theo dõi và quản lý mã quét.</span>
+        </a>
+        <a class="quick-card" href="tours">
+            <i class="bi bi-map"></i>
+            <strong>Tour</strong>
+            <span>Lộ trình và danh sách điểm dừng.</span>
+        </a>
+        <a class="quick-card" href="languagesetting">
+            <i class="bi bi-translate"></i>
+            <strong>Ngôn ngữ</strong>
+            <span>Cấu hình ngôn ngữ hỗ trợ.</span>
+        </a>
+    </section>
+</div>

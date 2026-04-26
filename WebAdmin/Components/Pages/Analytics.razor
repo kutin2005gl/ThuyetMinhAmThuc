@@ -5,102 +5,131 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<h3>Thống kê & Monitoring</h3>
+<PageTitle>Thống kê & Analytics</PageTitle>
 
-<!-- Metric cards -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="card text-center p-3 border-primary">
-            <div class="text-muted small">Du khách đang online</div>
-            <div class="fs-2 fw-bold text-primary">@(summary?.ActiveUsers ?? 0)</div>
+<div class="analytics-page">
+    <section class="analytics-header">
+        <div>
+            <p class="eyebrow">Analytics</p>
+            <h1>Thống kê sử dụng</h1>
+            <p>Theo dõi du khách, lượt nghe, POI nổi bật và vị trí tương tác trên bản đồ.</p>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center p-3 border-success">
-            <div class="text-muted small">Tổng du khách</div>
-            <div class="fs-2 fw-bold text-success">@(summary?.Total ?? 0)</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center p-3 border-warning">
-            <div class="text-muted small">Du khách hôm nay</div>
-            <div class="fs-2 fw-bold text-warning">@(summary?.TodayCount ?? 0)</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-center p-3 border-info">
-            <div class="text-muted small">Tổng lượt nghe</div>
-            <div class="fs-2 fw-bold text-info">@(summary?.TotalListens ?? 0)</div>
-        </div>
-    </div>
-</div>
+        <button class="refresh-button" @onclick="LoadData">
+            <i class="bi bi-arrow-clockwise"></i>
+            Làm mới dữ liệu
+        </button>
+    </section>
 
-<div class="row g-3">
-    <!-- Top POI -->
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h5>Top điểm nghe nhiều nhất</h5>
+    <section class="metric-grid" aria-label="Tổng quan analytics">
+        <div class="metric-card accent-blue">
+            <i class="bi bi-broadcast-pin"></i>
+            <span>Du khách đang online</span>
+            <strong>@(summary?.ActiveUsers ?? 0)</strong>
+        </div>
+        <div class="metric-card accent-green">
+            <i class="bi bi-people"></i>
+            <span>Tổng du khách</span>
+            <strong>@(summary?.Total ?? 0)</strong>
+        </div>
+        <div class="metric-card accent-orange">
+            <i class="bi bi-calendar2-check"></i>
+            <span>Du khách hôm nay</span>
+            <strong>@(summary?.TodayCount ?? 0)</strong>
+        </div>
+        <div class="metric-card accent-cyan">
+            <i class="bi bi-volume-up"></i>
+            <span>Tổng lượt nghe</span>
+            <strong>@(summary?.TotalListens ?? 0)</strong>
+        </div>
+    </section>
+
+    <section class="insight-grid">
+        <div class="panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Top điểm nghe nhiều nhất</h2>
+                    <p>POI có lượng tương tác audio cao.</p>
+                </div>
+            </div>
+
             @if (topPois != null && topPois.Any())
             {
-                @foreach (var poi in topPois)
-                {
-                    <div class="d-flex justify-content-between mb-2">
-                        <span>@poi.PoiName</span>
-                        <span class="badge bg-primary">@poi.Count</span>
-                    </div>
-                }
+                <div class="rank-list">
+                    @foreach (var poi in topPois)
+                    {
+                        <div class="rank-item">
+                            <div>
+                                <strong>@poi.PoiName</strong>
+                                <span>@poi.Count lượt nghe</span>
+                            </div>
+                            <div class="rank-bar">
+                                <span style="width:@GetTopPoiWidth(poi.Count)%"></span>
+                            </div>
+                        </div>
+                    }
+                </div>
             }
             else
             {
-                <p class="text-muted">Chưa có dữ liệu</p>
+                <p class="empty-text">Chưa có dữ liệu.</p>
             }
         </div>
-    </div>
 
-    <!-- Avg Duration -->
-    <div class="col-md-6">
-        <div class="card p-3">
-            <h5>Thời gian nghe trung bình</h5>
+        <div class="panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Thời gian nghe trung bình</h2>
+                    <p>Giúp đánh giá độ hấp dẫn của nội dung.</p>
+                </div>
+            </div>
+
             @if (avgDurations != null && avgDurations.Any())
             {
-                <table class="table table-sm">
-                    <tbody>
-                        @foreach (var d in avgDurations)
-                        {
+                <div class="table-responsive">
+                    <table class="table analytics-table">
+                        <thead>
                             <tr>
-                                <td>@d.PoiName</td>
-                                <td>@(d.AvgSeconds / 60)p @(d.AvgSeconds % 60)s</td>
+                                <th>POI</th>
+                                <th>Thời lượng</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach (var d in avgDurations)
+                            {
+                                <tr>
+                                    <td>@d.PoiName</td>
+                                    <td>@FormatDuration(d.AvgSeconds)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             }
             else
             {
-                <p class="text-muted">Chưa có dữ liệu</p>
+                <p class="empty-text">Chưa có dữ liệu.</p>
             }
         </div>
-    </div>
-</div>
+    </section>
 
-<!-- 🔥 MAP -->
-<div class="card p-3 mt-3">
-    <h5>Heatmap vị trí du khách</h5>
+    <section class="panel map-panel">
+        <div class="panel-heading">
+            <div>
+                <h2>Heatmap vị trí du khách</h2>
+                <p>Hiển thị các điểm GPS đã ghi nhận từ ứng dụng mobile.</p>
+            </div>
+            <span class="point-count">@((heatmapPoints?.Count ?? 0).ToString("N0")) điểm</span>
+        </div>
 
-    @if (heatmapPoints != null && heatmapPoints.Any())
-    {
-        <div id="map" style="height:400px;border-radius:10px;"></div>
-    }
-    else
-    {
-        <p class="text-muted">Chưa có dữ liệu vị trí</p>
-    }
-</div>
-
-<div class="mt-3">
-    <button class="btn btn-outline-secondary btn-sm" @onclick="LoadData">
-        Làm mới dữ liệu
-    </button>
+        @if (heatmapPoints != null && heatmapPoints.Any())
+        {
+            <div id="map"></div>
+        }
+        else
+        {
+            <p class="empty-text">Chưa có dữ liệu vị trí.</p>
+        }
+    </section>
 </div>
 
 @code {
@@ -109,6 +138,7 @@
     private List<AvgDurationDto>? avgDurations;
     private List<HeatmapPoint>? heatmapPoints;
     private bool shouldRenderMap = false;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadData();
@@ -134,7 +164,19 @@
         heatmapPoints = await http.GetFromJsonAsync<List<HeatmapPoint>>("/api/Analytics/heatmap");
         shouldRenderMap = heatmapPoints != null && heatmapPoints.Any();
         StateHasChanged();
-        
+    }
+
+    private int GetTopPoiWidth(int count)
+    {
+        var max = Math.Max(topPois?.Max(p => p.Count) ?? 0, 1);
+        return Math.Clamp((int)Math.Round(count * 100m / max), 8, 100);
+    }
+
+    private static string FormatDuration(int totalSeconds)
+    {
+        var minutes = totalSeconds / 60;
+        var seconds = totalSeconds % 60;
+        return $"{minutes}p {seconds}s";
     }
 
     public class SummaryDto
@@ -171,12 +213,13 @@
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
     }
-  protected override async Task OnAfterRenderAsync(bool firstRender)
-{
-    if (shouldRenderMap && heatmapPoints != null && heatmapPoints.Any())
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        shouldRenderMap = false;
-        await JS.InvokeVoidAsync("loadHeatmap", heatmapPoints);
+        if (shouldRenderMap && heatmapPoints != null && heatmapPoints.Any())
+        {
+            shouldRenderMap = false;
+            await JS.InvokeVoidAsync("loadHeatmap", heatmapPoints);
+        }
     }
-}
 }

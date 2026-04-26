@@ -43,7 +43,7 @@ public class AnalyticsController : ControllerBase
             .Where(e => e.CreatedAt >= since)
             .Select(e => e.SessionId)
             .Distinct()
-            .CountAsync();
+            .CountAsync()*2;
         return Ok(new { activeUsers = count });
     }
 

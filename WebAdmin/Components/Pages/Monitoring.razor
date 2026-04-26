@@ -9,11 +9,18 @@
         <div>
             <p class="eyebrow">WebAdmin</p>
             <h1>Monitoring hệ thống</h1>
-            <p class="header-subtitle">Theo dõi thiết bị/guest session, lượt mở app, quét QR và lượt nghe thuyết minh POI.</p>
+            <p class="header-subtitle">Theo dõi thiết bị, lượt mở app, quét QR và lượt nghe thuyết minh POI theo thời gian gần nhất.</p>
         </div>
-        <button class="refresh-button" @onclick="LoadAsync" disabled="@isLoading">
-            @(isLoading ? "Đang tải..." : "Làm mới")
-        </button>
+        <div class="header-actions">
+            @if (summary != null)
+            {
+                <span class="generated-time">Cập nhật: @summary.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</span>
+            }
+            <button class="refresh-button" @onclick="LoadAsync" disabled="@isLoading">
+                <i class="bi bi-arrow-clockwise"></i>
+                @(isLoading ? "Đang tải..." : "Làm mới")
+            </button>
+        </div>
     </section>
 
     @if (!string.IsNullOrWhiteSpace(error))
@@ -23,7 +30,10 @@
 
     @if (summary == null || weekly == null)
     {
-        <div class="loading-panel">Đang tải dữ liệu monitoring...</div>
+        <div class="loading-panel">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            Đang tải dữ liệu monitoring...
+        </div>
     }
     else
     {
@@ -31,6 +41,7 @@
             @foreach (var metric in GetMetrics())
             {
                 <div class="metric-card accent-@metric.Accent">
+                    <div class="metric-icon"><i class="bi @metric.Icon"></i></div>
                     <div class="metric-title">@metric.Title</div>
                     <div class="metric-value">@metric.Value.ToString("N0")</div>
                     <p class="metric-caption">@metric.Caption</p>
@@ -49,8 +60,8 @@
             <div class="chart-layout">
                 <div class="chart-card">
                     <div class="chart-heading">
-                        <h3>Thiết bị/người dùng theo ngày</h3>
-                        <span>Cột càng cao nghĩa là càng nhiều thiết bị sử dụng app</span>
+                        <h3>Thiết bị theo ngày</h3>
+                        <span>Cột càng cao nghĩa là càng nhiều thiết bị sử dụng app.</span>
                     </div>
                     <div class="device-bars">
                         @foreach (var day in weekly.Days)
@@ -70,7 +81,7 @@
                 <div class="chart-card">
                     <div class="chart-heading">
                         <h3>Mở app / QR / Nghe POI</h3>
-                        <span>So sánh các hành động chính trong tuần</span>
+                        <span>So sánh các hành động chính trong tuần.</span>
                     </div>
                     <div class="multi-bars">
                         @foreach (var day in weekly.Days)
@@ -105,7 +116,7 @@
             <div class="section-title-row">
                 <div>
                     <h2>Heatmap sử dụng app</h2>
-                    <p>Màu càng đậm nghĩa là càng nhiều thiết bị/người dùng trong ngày đó.</p>
+                    <p>Màu càng đậm nghĩa là càng nhiều thiết bị hoạt động trong ngày đó.</p>
                 </div>
             </div>
 
@@ -123,17 +134,22 @@
         </section>
 
         <section class="table-section">
-            <h2>Chi tiết theo ngày</h2>
+            <div class="section-title-row">
+                <div>
+                    <h2>Chi tiết theo ngày</h2>
+                    <p>Dữ liệu được lấy từ API monitoring hiện có.</p>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table monitoring-table">
                     <thead>
                         <tr>
                             <th>Ngày</th>
-                            <th>Thiết bị/người dùng</th>
+                            <th>Thiết bị</th>
                             <th>Lượt mở app</th>
                             <th>Lượt quét QR</th>
                             <th>Lượt nghe POI</th>
-                            <th>Tổng lượt sử dụng</th>
+                            <th>Tổng lượt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -161,8 +177,8 @@
     private string? error;
     private bool isLoading;
 
-    private int MaxDevices => Math.Max(weekly?.Days.Max(d => d.UniqueDevices) ?? 0, 1);
-    private int MaxInteractions => Math.Max(weekly?.Days.Max(d => Math.Max(d.AppOpens, Math.Max(d.QrScans, d.PoiListens))) ?? 0, 1);
+    private int MaxDevices => Math.Max(weekly?.Days.Count > 0 ? weekly.Days.Max(d => d.UniqueDevices) : 0, 1);
+    private int MaxInteractions => Math.Max(weekly?.Days.Count > 0 ? weekly.Days.Max(d => Math.Max(d.AppOpens, Math.Max(d.QrScans, d.PoiListens))) : 0, 1);
 
     protected override async Task OnInitializedAsync()
     {
@@ -229,12 +245,12 @@
 
         return
         [
-            new("Đang sử dụng", summary.ActiveDevicesNow, "Thiết bị hoạt động 10 giây gần nhất", "blue"),
-            new("Thiết bị hôm nay", summary.ActiveDevicesToday, "Guest session có hoạt động hôm nay", "green"),
-            new("Tổng thiết bị", summary.TotalDevices, "Tất cả guest session đã ghi nhận", "violet"),
-            new("Lượt mở app", summary.TotalAppOpens, "Tổng số lần mở ứng dụng", "orange"),
-            new("Quét QR", summary.TotalQrScans, "Tổng lượt quét mã QR", "cyan"),
-            new("Nghe POI", summary.TotalPoiListens, "Tổng lượt nghe/thuyết minh", "rose")
+            new("Tổng thiết bị", summary.TotalDevices, "Tất cả guest session đã ghi nhận", "violet", "bi-hdd-network"),
+            new("Đang dùng", summary.ActiveDevicesNow, "Thiết bị hoạt động 10 giây gần nhất", "blue", "bi-broadcast-pin"),
+            new("Thiết bị hôm nay", summary.ActiveDevicesToday, "Guest session có hoạt động hôm nay", "green", "bi-phone"),
+            new("Lượt mở app", summary.TotalAppOpens, "Tổng số lần mở ứng dụng", "orange", "bi-box-arrow-in-right"),
+            new("Quét QR", summary.TotalQrScans, "Tổng lượt quét mã QR", "cyan", "bi-qr-code-scan"),
+            new("Nghe POI", summary.TotalPoiListens, "Tổng lượt nghe thuyết minh", "rose", "bi-volume-up")
         ];
     }
 
@@ -269,5 +285,5 @@
         public int TotalEvents { get; set; }
     }
 
-    private sealed record MetricItem(string Title, int Value, string Caption, string Accent);
+    private sealed record MetricItem(string Title, int Value, string Caption, string Accent, string Icon);
 }

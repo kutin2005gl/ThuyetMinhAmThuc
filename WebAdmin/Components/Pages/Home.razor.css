@@ -1,0 +1,146 @@
+.admin-home {
+    color: #172033;
+    display: grid;
+    gap: 1.25rem;
+    padding-bottom: 2rem;
+}
+
+.home-hero {
+    align-items: center;
+    background: linear-gradient(135deg, #0f172a 0%, #0f766e 62%, #f59e0b 100%);
+    border-radius: 20px;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    min-height: 220px;
+    padding: 2rem;
+}
+
+.eyebrow {
+    color: #ccfbf1;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    margin: 0 0 0.45rem;
+    text-transform: uppercase;
+}
+
+.home-hero h1 {
+    font-size: 2.45rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.08;
+    margin: 0;
+    max-width: 780px;
+}
+
+.hero-copy {
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 1rem;
+    margin: 0.85rem 0 0;
+    max-width: 700px;
+}
+
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.primary-action,
+.secondary-action {
+    align-items: center;
+    border-radius: 14px;
+    display: inline-flex;
+    font-weight: 800;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+    text-decoration: none;
+}
+
+.primary-action {
+    background: #fff;
+    color: #0f766e;
+}
+
+.secondary-action {
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    color: #fff;
+}
+
+.quick-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.quick-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 18px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.07);
+    color: #172033;
+    display: grid;
+    gap: 0.5rem;
+    min-height: 160px;
+    padding: 1.25rem;
+    text-decoration: none;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.quick-card:hover {
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+    color: #172033;
+    transform: translateY(-2px);
+}
+
+.quick-card i {
+    align-items: center;
+    background: #ecfdf5;
+    border-radius: 14px;
+    color: #0f766e;
+    display: inline-flex;
+    font-size: 1.25rem;
+    height: 42px;
+    justify-content: center;
+    width: 42px;
+}
+
+.quick-card strong {
+    color: #0f172a;
+    font-size: 1.05rem;
+}
+
+.quick-card span {
+    color: #64748b;
+    line-height: 1.45;
+}
+
+@media (max-width: 1040px) {
+    .home-hero {
+        align-items: start;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .hero-actions {
+        justify-content: flex-start;
+    }
+
+    .quick-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 720px) {
+    .home-hero h1 {
+        font-size: 1.9rem;
+    }
+
+    .quick-grid {
+        grid-template-columns: 1fr;
+    }
+}
