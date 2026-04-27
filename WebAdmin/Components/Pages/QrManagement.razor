@@ -17,6 +17,11 @@
         </div>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger shadow-sm" role="alert">@errorMessage</div>
+    }
+
     @if (pois == null)
     {
         <div class="text-center p-5">
@@ -95,9 +100,11 @@
 
 @code {
     private List<PoiDto>? pois;
+    private string? errorMessage;
     private string apiBaseUrl = "http://localhost:5000";
     private string publicBaseUrl = "http://localhost:5000";
 
+    // Công dụng: kiểm tra phiên đăng nhập và tải dữ liệu QR ban đầu.
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsLoggedIn)
@@ -109,10 +116,12 @@
         await LoadPois();
     }
 
+    // Công dụng: lấy danh sách POI, cấu hình URL công khai và lọc theo quyền tài khoản hiện tại.
     private async Task LoadPois()
     {
         try
         {
+            errorMessage = null;
             var http = HttpFactory.CreateClient("WebAPI");
             apiBaseUrl = http.BaseAddress?.ToString().TrimEnd('/') ?? apiBaseUrl;
 
@@ -129,14 +138,18 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Lỗi tải dữ liệu: {ex.Message}");
+            pois = [];
+            errorMessage = $"Lỗi tải dữ liệu QR: {ex.Message}";
         }
     }
 
+    // Công dụng: tạo URL ảnh QR PNG cho từng POI.
     private string GetQrUrl(int poiId) => $"{apiBaseUrl}/api/Qr/{poiId}";
 
+    // Công dụng: tạo URL landing page được nhúng vào QR.
     private string GetLandingUrl(int poiId) => $"{publicBaseUrl}/p/{poiId}";
 
+    // Công dụng: copy URL landing page vào clipboard để admin dán ra vật phẩm trưng bày.
     private async Task CopyLandingUrl(string landingUrl)
     {
         await JS.InvokeVoidAsync("navigator.clipboard.writeText", landingUrl);

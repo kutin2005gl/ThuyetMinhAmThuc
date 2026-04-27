@@ -16,6 +16,7 @@ public class TourController : ControllerBase
         _db = db;
     }
 
+    // Công dụng: lấy danh sách tour đang hoạt động kèm thứ tự POI để WebAdmin hiển thị.
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -42,6 +43,7 @@ public class TourController : ControllerBase
         return Ok(tours);
     }
 
+    // Công dụng: tạo tour mới và lưu danh sách POI theo thứ tự người quản trị chọn.
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] TourDto dto)
     {
@@ -71,6 +73,47 @@ public class TourController : ControllerBase
         return Ok(tour);
     }
 
+    // Công dụng: cập nhật thông tin tour và thay lại lộ trình POI theo thứ tự mới.
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] TourDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+        {
+            return BadRequest("Tên tour không được rỗng.");
+        }
+
+        if (dto.PoiIds == null || !dto.PoiIds.Any())
+        {
+            return BadRequest("Tour cần ít nhất một POI.");
+        }
+
+        var tour = await _db.Tours
+            .Include(t => t.TourPois)
+            .FirstOrDefaultAsync(t => t.Id == id && t.IsActive);
+
+        if (tour == null) return NotFound();
+
+        tour.Name = dto.Name.Trim();
+        tour.Description = dto.Description?.Trim() ?? "";
+
+        _db.TourPois.RemoveRange(tour.TourPois);
+
+        var poiIds = dto.PoiIds.Distinct().ToList();
+        for (int i = 0; i < poiIds.Count; i++)
+        {
+            _db.TourPois.Add(new TourPoi
+            {
+                TourId = tour.Id,
+                PoiId = poiIds[i],
+                Order = i + 1
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        return Ok(tour);
+    }
+
+    // Công dụng: xóa mềm tour khỏi danh sách đang hoạt động.
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

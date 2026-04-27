@@ -4,186 +4,419 @@
 @inject UserSession Session
 @inject NavigationManager Nav
 
-<div class="container-fluid px-4 mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
+<PageTitle>Quản lý POI</PageTitle>
+
+<div class="cms-page">
+    <section class="cms-hero">
         <div>
-            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-geo-alt-fill me-2"></i>Quản lý Điểm tham quan</h3>
-            <small class="text-muted">Quản lý các địa điểm nội dung đa ngôn ngữ trên hệ thống</small>
+            <span class="eyebrow">FoodGuide CMS</span>
+            <h1>Quản lý điểm tham quan</h1>
+            <p>Thêm, sửa, xóa POI và cập nhật vị trí GPS, bán kính geofence, hình ảnh để app mobile hiển thị đúng nội dung.</p>
         </div>
         @if (Session.IsAdmin)
         {
-            <button class="btn btn-primary shadow-sm px-4 py-2 fw-bold" @onclick="ShowAddForm">
-                <i class="bi bi-plus-circle me-2"></i>Thêm POI mới
+            <button class="btn btn-primary btn-lg" @onclick="ShowAddForm">
+                <i class="bi bi-plus-circle"></i>
+                Thêm POI
             </button>
         }
-    </div>
+    </section>
+
+    <section class="metric-grid compact">
+        <div class="metric-card accent-blue">
+            <i class="bi bi-geo-alt"></i>
+            <span>Tổng POI</span>
+            <strong>@(pois?.Count ?? 0)</strong>
+        </div>
+        <div class="metric-card accent-green">
+            <i class="bi bi-image"></i>
+            <span>Có hình ảnh</span>
+            <strong>@(pois?.Count(p => !string.IsNullOrWhiteSpace(p.ImageUrl)) ?? 0)</strong>
+        </div>
+        <div class="metric-card accent-orange">
+            <i class="bi bi-broadcast-pin"></i>
+            <span>Bán kính TB</span>
+            <strong>@AverageRadiusText</strong>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") border-0 shadow-sm d-flex align-items-center justify-content-between">
+            <span><i class="bi @(isError ? "bi-exclamation-triangle" : "bi-check-circle")"></i>@message</span>
+            <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+        </div>
+    }
 
     @if (showForm)
     {
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-dark text-white fw-bold py-3">
-                <i class="bi bi-pencil-square me-2"></i>@(editingId == 0 ? "TẠO MỚI ĐỊA ĐIỂM" : "CẬP NHẬT THÔNG TIN")
-            </div>
-            <div class="card-body p-4 bg-light">
-                <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="form-label fw-bold">Tên địa điểm</label>
-                        <input class="form-control form-control-lg border-0 shadow-sm" @bind="form.Name" />
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold">Bán kính kích hoạt (m)</label>
-                        <input class="form-control border-0 shadow-sm" type="number" @bind="form.RadiusMeters"/>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold">Mô tả tổng quan</label>
-                        <textarea class="form-control border-0 shadow-sm" rows="3" @bind="form.Description"></textarea>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold text-danger">Vĩ độ</label>
-                        <input class="form-control border-0 shadow-sm" type="number" step="0.000001" @bind="form.Latitude"/>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold text-danger">Kinh độ</label>
-                        <input class="form-control border-0 shadow-sm" type="number" step="0.000001" @bind="form.Longitude"/>
-                    </div>
+        <section class="cms-panel form-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>@(editingId == 0 ? "Tạo POI mới" : "Cập nhật POI")</h2>
+                    <p>Nhập thông tin đủ ngắn gọn để dễ demo, nhưng vẫn có tọa độ và bán kính cho GPS/geofence.</p>
                 </div>
-                <div class="mt-4 d-flex gap-2 justify-content-end">
-                    <button class="btn btn-outline-secondary px-4 rounded-pill" @onclick="HideForm">Hủy bỏ</button>
-                    <button class="btn btn-success px-5 rounded-pill shadow" @onclick="SavePoi">Lưu dữ liệu</button>
+                <button class="btn btn-light" @onclick="HideForm">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-lg-7">
+                    <label class="form-label">Tên địa điểm</label>
+                    <input class="form-control form-control-lg" @bind="form.Name" placeholder="Ví dụ: Phở Bà Dậu" />
+                </div>
+                <div class="col-lg-5">
+                    <label class="form-label">Bán kính kích hoạt (m)</label>
+                    <input class="form-control form-control-lg" type="number" min="1" step="1" @bind="form.RadiusMeters" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Mô tả ngắn</label>
+                    <textarea class="form-control" rows="3" @bind="form.Description" placeholder="Mô tả nội dung thuyết minh chính của POI"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Vĩ độ</label>
+                    <input class="form-control" type="number" step="0.000001" @bind="form.Latitude" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Kinh độ</label>
+                    <input class="form-control" type="number" step="0.000001" @bind="form.Longitude" />
                 </div>
             </div>
-        </div>
-    }
 
-    @if (!string.IsNullOrEmpty(message))
-    {
-        <div class="alert alert-info border-0 shadow-sm alert-dismissible fade show">
-            <i class="bi bi-info-circle-fill me-2"></i> @message
-            <button type="button" class="btn-close" @onclick='() => message = ""'></button>
-        </div>
-    }
-
-    <div class="card border-0 shadow-sm rounded-3 overflow-hidden">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="bg-primary text-white">
-                    <tr>
-                        <th class="ps-4">THÔNG TIN ĐỊA ĐIỂM</th>
-                        <th>TỌA ĐỘ</th>
-                        <th>HÌNH ẢNH</th>
-                        <th class="text-center pe-4">THAO TÁC</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white">
-                    @if (pois != null)
+            <div class="form-actions">
+                <button class="btn btn-outline-secondary" @onclick="HideForm">Hủy</button>
+                <button class="btn btn-success" @onclick="SavePoi" disabled="@isSaving">
+                    @if (isSaving)
                     {
-                        @foreach (var poi in pois)
+                        <span class="spinner-border spinner-border-sm"></span>
+                        <span>Đang lưu</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-save"></i>
+                        <span>Lưu POI</span>
+                    }
+                </button>
+            </div>
+        </section>
+    }
+
+    <section class="cms-panel">
+        <div class="panel-heading toolbar-heading">
+            <div>
+                <h2>Danh sách POI</h2>
+                <p>Quản lý các địa điểm đang hoạt động trong hệ thống.</p>
+            </div>
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input class="form-control" placeholder="Tìm theo tên hoặc mô tả" @bind="searchTerm" @bind:event="oninput" />
+            </div>
+        </div>
+
+        @if (pois == null)
+        {
+            <div class="empty-state">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p>Đang tải danh sách POI...</p>
+            </div>
+        }
+        else if (!FilteredPois.Any())
+        {
+            <div class="empty-state">
+                <i class="bi bi-map"></i>
+                <h3>Chưa có POI phù hợp</h3>
+                <p>Thử đổi từ khóa tìm kiếm hoặc thêm POI mới.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table cms-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Địa điểm</th>
+                            <th>Tọa độ</th>
+                            <th>Geofence</th>
+                            <th>Hình ảnh</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var poi in FilteredPois)
                         {
                             <tr>
-                                <td class="ps-4">
-                                    <div class="fw-bold text-dark fs-5">@poi.Name</div>
-                                    <div class="small text-muted text-truncate" style="max-width: 300px;">@poi.Description</div>
+                                <td>
+                                    <div class="item-title">@poi.Name</div>
+                                    <div class="item-subtitle">@poi.Description</div>
                                 </td>
                                 <td>
-                                    <div class="d-flex flex-column gap-1">
-                                        <code class="text-danger small">LAT: @poi.Latitude</code>
-                                        <code class="text-primary small">LNG: @poi.Longitude</code>
+                                    <div class="code-stack">
+                                        <code>@poi.Latitude.ToString("0.000000")</code>
+                                        <code>@poi.Longitude.ToString("0.000000")</code>
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="position-relative" style="width:65px; height:65px;">
-                                        @if (!string.IsNullOrEmpty(poi.ImageUrl))
+                                    <span class="status-pill info">@poi.RadiusMeters.ToString("0") m</span>
+                                </td>
+                                <td>
+                                    <div class="poi-thumb">
+                                        @if (!string.IsNullOrWhiteSpace(poi.ImageUrl))
                                         {
-                                            <img src="@poi.ImageUrl" class="rounded-3 shadow-sm border w-100 h-100" style="object-fit:cover"/>
+                                            <img src="@poi.ImageUrl" alt="@poi.Name" />
                                         }
                                         else
                                         {
-                                            <div class="bg-light rounded-3 d-flex align-items-center justify-content-center text-muted border w-100 h-100">
-                                                <i class="bi bi-image"></i>
-                                            </div>
+                                            <i class="bi bi-image"></i>
                                         }
-                                        
-                                        @if (Session.IsAdmin || Session.PoiId == poi.Id)
+
+                                        @if (CanManagePoi(poi))
                                         {
-                                            <label for="@($"file-{poi.Id}")" class="btn btn-dark btn-sm position-absolute top-50 start-50 translate-middle rounded-circle p-1 opacity-75">
-                                                <i class="bi bi-camera-fill"></i>
+                                            <label for="@($"file-{poi.Id}")" class="thumb-upload" title="Cập nhật ảnh">
+                                                <i class="bi bi-camera"></i>
                                             </label>
                                             <InputFile id="@($"file-{poi.Id}")" OnChange="e => UploadImage(e, poi.Id)" accept="image/*" class="d-none" />
                                         }
                                     </div>
                                 </td>
-                                <td class="text-center pe-4">
-                                    <div class="btn-group shadow-sm rounded-pill overflow-hidden">
-                                        @if (Session.IsAdmin || Session.PoiId == poi.Id)
+                                <td class="text-end">
+                                    <div class="action-row justify-content-end">
+                                        @if (CanManagePoi(poi))
                                         {
-                                            <button class="btn btn-warning border-0 px-3" @onclick="() => EditPoi(poi)"><i class="bi bi-pencil-fill"></i></button>
+                                            <button class="btn btn-outline-primary btn-sm" @onclick="() => EditPoi(poi)">
+                                                <i class="bi bi-pencil"></i>
+                                                Sửa
+                                            </button>
                                         }
                                         @if (Session.IsAdmin)
                                         {
-                                            <button class="btn btn-danger border-0 px-3" @onclick="() => DeletePoi(poi.Id)"><i class="bi bi-trash-fill"></i></button>
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => DeletePoi(poi.Id)">
+                                                <i class="bi bi-trash"></i>
+                                                Xóa
+                                            </button>
                                         }
                                     </div>
                                 </td>
                             </tr>
                         }
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
 </div>
 
 @code {
     private List<PoiDto>? pois;
-    private PoiDto form = new();
-    private bool showForm = false;
-    private int editingId = 0;
+    private PoiDto form = new() { RadiusMeters = 30 };
+    private bool showForm;
+    private bool isSaving;
+    private bool isError;
+    private int editingId;
     private string message = "";
+    private string searchTerm = "";
 
+    private IEnumerable<PoiDto> FilteredPois =>
+        string.IsNullOrWhiteSpace(searchTerm)
+            ? pois ?? Enumerable.Empty<PoiDto>()
+            : (pois ?? Enumerable.Empty<PoiDto>()).Where(p =>
+                p.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+    private string AverageRadiusText
+    {
+        get
+        {
+            if (pois == null || !pois.Any())
+            {
+                return "0 m";
+            }
+
+            return $"{pois.Average(p => p.RadiusMeters):0} m";
+        }
+    }
+
+    // Công dụng: kiểm tra phiên đăng nhập và tải danh sách POI khi mở trang.
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
         await LoadPois();
     }
 
+    // Công dụng: lấy POI từ API và lọc theo quyền của tài khoản đang đăng nhập.
     private async Task LoadPois()
     {
-        try {
+        try
+        {
             var http = HttpFactory.CreateClient("WebAPI");
-            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
-            pois = Session.IsAdmin ? allPois : allPois?.Where(p => p.Id == Session.PoiId).ToList();
-        } catch (Exception ex) { message = "Lỗi: " + ex.Message; }
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi") ?? new();
+            pois = Session.IsAdmin ? allPois : allPois.Where(p => p.Id == Session.PoiId).ToList();
+        }
+        catch (Exception ex)
+        {
+            SetMessage($"Không thể tải danh sách POI: {ex.Message}", true);
+        }
     }
 
-    private void ShowAddForm() { form = new PoiDto { RadiusMeters = 30 }; editingId = 0; showForm = true; }
-    private void EditPoi(PoiDto poi) {
-        form = new PoiDto { Id = poi.Id, Name = poi.Name, Description = poi.Description, Latitude = poi.Latitude, Longitude = poi.Longitude, RadiusMeters = poi.RadiusMeters, ImageUrl = poi.ImageUrl };
-        editingId = poi.Id; showForm = true;
+    // Công dụng: mở form tạo mới POI với giá trị mặc định dễ nhập.
+    private void ShowAddForm()
+    {
+        form = new PoiDto { RadiusMeters = 30 };
+        editingId = 0;
+        showForm = true;
+        ClearMessage();
     }
-    private void HideForm() { showForm = false; editingId = 0; }
 
+    // Công dụng: đưa dữ liệu POI đang chọn vào form để chỉnh sửa.
+    private void EditPoi(PoiDto poi)
+    {
+        form = new PoiDto
+        {
+            Id = poi.Id,
+            Name = poi.Name,
+            Description = poi.Description,
+            Latitude = poi.Latitude,
+            Longitude = poi.Longitude,
+            RadiusMeters = poi.RadiusMeters,
+            ImageUrl = poi.ImageUrl
+        };
+        editingId = poi.Id;
+        showForm = true;
+        ClearMessage();
+    }
+
+    // Công dụng: đóng form và xóa trạng thái chỉnh sửa hiện tại.
+    private void HideForm()
+    {
+        showForm = false;
+        editingId = 0;
+        form = new PoiDto { RadiusMeters = 30 };
+    }
+
+    // Công dụng: tạo mới hoặc cập nhật POI qua API.
     private async Task SavePoi()
     {
-        var http = HttpFactory.CreateClient("WebAPI");
-        var res = editingId == 0 ? await http.PostAsJsonAsync("/api/Poi", form) : await http.PutAsJsonAsync($"/api/Poi/{editingId}", form);
-        if (res.IsSuccessStatusCode) { await LoadPois(); HideForm(); message = "✅ Thành công!"; }
+        if (string.IsNullOrWhiteSpace(form.Name))
+        {
+            SetMessage("Vui lòng nhập tên địa điểm.", true);
+            return;
+        }
+
+        if (form.RadiusMeters <= 0)
+        {
+            SetMessage("Bán kính kích hoạt phải lớn hơn 0.", true);
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var isCreate = editingId == 0;
+            var response = editingId == 0
+                ? await http.PostAsJsonAsync("/api/Poi", form)
+                : await http.PutAsJsonAsync($"/api/Poi/{editingId}", form);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPois();
+                HideForm();
+                SetMessage(isCreate ? "Đã thêm POI mới." : "Đã cập nhật POI.", false);
+            }
+            else
+            {
+                SetMessage($"Không thể lưu POI: {await response.Content.ReadAsStringAsync()}", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetMessage($"Không thể kết nối API: {ex.Message}", true);
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
-    private async Task DeletePoi(int id) {
-        var http = HttpFactory.CreateClient("WebAPI");
-        await http.DeleteAsync($"/api/Poi/{id}");
-        await LoadPois(); message = "🗑️ Đã xóa!";
+    // Công dụng: xóa POI khỏi hệ thống và tải lại danh sách.
+    private async Task DeletePoi(int id)
+    {
+        try
+        {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var response = await http.DeleteAsync($"/api/Poi/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPois();
+                SetMessage("Đã xóa POI.", false);
+            }
+            else
+            {
+                SetMessage($"Không thể xóa POI: {await response.Content.ReadAsStringAsync()}", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetMessage($"Không thể kết nối API: {ex.Message}", true);
+        }
     }
 
-    private async Task UploadImage(InputFileChangeEventArgs e, int poiId) {
-        var content = new MultipartFormDataContent();
-        content.Add(new StreamContent(e.File.OpenReadStream(5 * 1024 * 1024)), "file", e.File.Name);
-        var http = HttpFactory.CreateClient("WebAPI");
-        var res = await http.PostAsync($"/api/Poi/{poiId}/upload-image", content);
-        if (res.IsSuccessStatusCode) { await LoadPois(); message = "🖼️ Đã cập nhật ảnh!"; }
+    // Công dụng: tải ảnh POI lên API và cập nhật lại ảnh hiển thị trong bảng.
+    private async Task UploadImage(InputFileChangeEventArgs e, int poiId)
+    {
+        try
+        {
+            var file = e.File;
+            using var content = new MultipartFormDataContent();
+            using var fileContent = new StreamContent(file.OpenReadStream(5 * 1024 * 1024));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+
+            var http = HttpFactory.CreateClient("WebAPI");
+            var response = await http.PostAsync($"/api/Poi/{poiId}/upload-image", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await LoadPois();
+                SetMessage("Đã cập nhật ảnh POI.", false);
+            }
+            else
+            {
+                SetMessage($"Không thể tải ảnh: {await response.Content.ReadAsStringAsync()}", true);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetMessage($"Không thể tải ảnh: {ex.Message}", true);
+        }
     }
 
-    public class PoiDto {
+    // Công dụng: xác định tài khoản hiện tại có quyền sửa POI này hay không.
+    private bool CanManagePoi(PoiDto poi) => Session.IsAdmin || Session.PoiId == poi.Id;
+
+    // Công dụng: hiển thị thông báo thành công hoặc lỗi cho người dùng.
+    private void SetMessage(string text, bool error)
+    {
+        message = text;
+        isError = error;
+    }
+
+    // Công dụng: xóa thông báo hiện tại trên giao diện.
+    private void ClearMessage()
+    {
+        message = "";
+        isError = false;
+    }
+
+    public class PoiDto
+    {
         public int Id { get; set; }
         public string Name { get; set; } = "";
         public string Description { get; set; } = "";

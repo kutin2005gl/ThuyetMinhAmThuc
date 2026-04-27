@@ -5,50 +5,100 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<PageTitle>Thống kê & Analytics</PageTitle>
+<PageTitle>Thống kê & lịch sử app</PageTitle>
 
-<div class="analytics-page">
-    <section class="analytics-header">
+<div class="cms-page analytics-page">
+    <section class="cms-hero">
         <div>
-            <p class="eyebrow">Analytics</p>
-            <h1>Thống kê sử dụng</h1>
-            <p>Theo dõi du khách, lượt nghe, POI nổi bật và vị trí tương tác trên bản đồ.</p>
+            <span class="eyebrow">Analytics</span>
+            <h1>Thống kê sử dụng app</h1>
+            <p>Theo dõi người dùng, lượt nghe, POI nổi bật, vị trí tương tác và lịch sử event để demo hoạt động của mobile app.</p>
         </div>
-        <button class="refresh-button" @onclick="LoadData">
+        <button class="btn btn-primary btn-lg" @onclick="LoadData" disabled="@isLoading">
             <i class="bi bi-arrow-clockwise"></i>
-            Làm mới dữ liệu
+            Làm mới
         </button>
     </section>
 
-    <section class="metric-grid" aria-label="Tổng quan analytics">
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center justify-content-between">
+            <span><i class="bi bi-exclamation-triangle"></i>@message</span>
+            <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+        </div>
+    }
+
+    <section class="metric-grid">
         <div class="metric-card accent-blue">
             <i class="bi bi-broadcast-pin"></i>
-            <span>Du khách đang online</span>
+            <span>Active users</span>
             <strong>@(summary?.ActiveUsers ?? 0)</strong>
         </div>
         <div class="metric-card accent-green">
             <i class="bi bi-people"></i>
-            <span>Tổng du khách</span>
+            <span>Tổng phiên</span>
             <strong>@(summary?.Total ?? 0)</strong>
         </div>
         <div class="metric-card accent-orange">
             <i class="bi bi-calendar2-check"></i>
-            <span>Du khách hôm nay</span>
+            <span>Hôm nay</span>
             <strong>@(summary?.TodayCount ?? 0)</strong>
         </div>
         <div class="metric-card accent-cyan">
             <i class="bi bi-volume-up"></i>
-            <span>Tổng lượt nghe</span>
+            <span>Lượt nghe</span>
             <strong>@(summary?.TotalListens ?? 0)</strong>
         </div>
     </section>
 
-    <section class="insight-grid">
-        <div class="panel">
+    <section class="cms-panel">
+        <div class="panel-heading toolbar-heading">
+            <div>
+                <h2>Biểu đồ theo ngày trong tuần</h2>
+                <p>So sánh active users, lượt mở app, quét QR và nghe POI trong 7 ngày gần nhất.</p>
+            </div>
+            <span class="status-pill info">@((weeklyTrend?.Sum(d => d.TotalEvents) ?? 0).ToString("N0")) event/tuần</span>
+        </div>
+
+        @if (weeklyTrend != null && weeklyTrend.Any())
+        {
+            <div class="weekly-chart" role="img" aria-label="Biểu đồ analytics theo ngày trong tuần">
+                @foreach (var day in weeklyTrend)
+                {
+                    <div class="weekly-column">
+                        <div class="weekly-bars" title="@BuildTrendTitle(day)">
+                            <span class="weekly-bar users" style="height:@GetTrendHeight(day.UniqueDevices)%"></span>
+                            <span class="weekly-bar opens" style="height:@GetTrendHeight(day.AppOpens)%"></span>
+                            <span class="weekly-bar scans" style="height:@GetTrendHeight(day.QrScans)%"></span>
+                            <span class="weekly-bar listens" style="height:@GetTrendHeight(day.PoiListens)%"></span>
+                        </div>
+                        <strong>@day.Label</strong>
+                        <small>@FormatShortDate(day.Date)</small>
+                    </div>
+                }
+            </div>
+            <div class="trend-legend">
+                <span><i class="legend-dot users"></i>Active users</span>
+                <span><i class="legend-dot opens"></i>App open</span>
+                <span><i class="legend-dot scans"></i>QR scan</span>
+                <span><i class="legend-dot listens"></i>POI listen</span>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state compact-empty">
+                <i class="bi bi-calendar-week"></i>
+                <p>Chưa có dữ liệu theo tuần.</p>
+            </div>
+        }
+    </section>
+
+    <div class="insight-grid">
+        <section class="cms-panel">
             <div class="panel-heading">
                 <div>
-                    <h2>Top điểm nghe nhiều nhất</h2>
-                    <p>POI có lượng tương tác audio cao.</p>
+                    <h2>Top POI nghe nhiều</h2>
+                    <p>Địa điểm có lượng tương tác audio cao nhất.</p>
                 </div>
             </div>
 
@@ -58,7 +108,7 @@
                     @foreach (var poi in topPois)
                     {
                         <div class="rank-item">
-                            <div>
+                            <div class="rank-copy">
                                 <strong>@poi.PoiName</strong>
                                 <span>@poi.Count lượt nghe</span>
                             </div>
@@ -71,34 +121,37 @@
             }
             else
             {
-                <p class="empty-text">Chưa có dữ liệu.</p>
+                <div class="empty-state compact-empty">
+                    <i class="bi bi-bar-chart"></i>
+                    <p>Chưa có dữ liệu nghe.</p>
+                </div>
             }
-        </div>
+        </section>
 
-        <div class="panel">
+        <section class="cms-panel">
             <div class="panel-heading">
                 <div>
                     <h2>Thời gian nghe trung bình</h2>
-                    <p>Giúp đánh giá độ hấp dẫn của nội dung.</p>
+                    <p>Giúp đánh giá độ hấp dẫn của nội dung từng POI.</p>
                 </div>
             </div>
 
             @if (avgDurations != null && avgDurations.Any())
             {
                 <div class="table-responsive">
-                    <table class="table analytics-table">
+                    <table class="table cms-table align-middle">
                         <thead>
                             <tr>
                                 <th>POI</th>
-                                <th>Thời lượng</th>
+                                <th class="text-end">Thời lượng</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var d in avgDurations)
+                            @foreach (var duration in avgDurations)
                             {
                                 <tr>
-                                    <td>@d.PoiName</td>
-                                    <td>@FormatDuration(d.AvgSeconds)</td>
+                                    <td>@duration.PoiName</td>
+                                    <td class="text-end"><span class="status-pill info">@FormatDuration(duration.AvgSeconds)</span></td>
                                 </tr>
                             }
                         </tbody>
@@ -107,18 +160,21 @@
             }
             else
             {
-                <p class="empty-text">Chưa có dữ liệu.</p>
+                <div class="empty-state compact-empty">
+                    <i class="bi bi-clock-history"></i>
+                    <p>Chưa có dữ liệu thời lượng nghe.</p>
+                </div>
             }
-        </div>
-    </section>
+        </section>
+    </div>
 
-    <section class="panel map-panel">
-        <div class="panel-heading">
+    <section class="cms-panel map-panel">
+        <div class="panel-heading toolbar-heading">
             <div>
-                <h2>Heatmap vị trí du khách</h2>
-                <p>Hiển thị các điểm GPS đã ghi nhận từ ứng dụng mobile.</p>
+                <h2>Heatmap vị trí</h2>
+                <p>Các điểm GPS đã ghi nhận từ ứng dụng mobile.</p>
             </div>
-            <span class="point-count">@((heatmapPoints?.Count ?? 0).ToString("N0")) điểm</span>
+            <span class="status-pill success">@((heatmapPoints?.Count ?? 0).ToString("N0")) điểm</span>
         </div>
 
         @if (heatmapPoints != null && heatmapPoints.Any())
@@ -127,7 +183,68 @@
         }
         else
         {
-            <p class="empty-text">Chưa có dữ liệu vị trí.</p>
+            <div class="empty-state compact-empty">
+                <i class="bi bi-geo-alt"></i>
+                <p>Chưa có dữ liệu vị trí.</p>
+            </div>
+        }
+    </section>
+
+    <section class="cms-panel">
+        <div class="panel-heading toolbar-heading">
+            <div>
+                <h2>Lịch sử event gần đây</h2>
+                <p>Log tương tác mới nhất từ mobile app.</p>
+            </div>
+            <span class="status-pill info">@(recentEvents?.Count ?? 0) event</span>
+        </div>
+
+        @if (recentEvents == null)
+        {
+            <div class="empty-state compact-empty">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p>Đang tải event...</p>
+            </div>
+        }
+        else if (!recentEvents.Any())
+        {
+            <div class="empty-state compact-empty">
+                <i class="bi bi-activity"></i>
+                <p>Chưa có lịch sử event.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table cms-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Thời gian</th>
+                            <th>Event</th>
+                            <th>POI</th>
+                            <th>Session</th>
+                            <th class="text-end">GPS / Thời lượng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var appEvent in recentEvents)
+                        {
+                            <tr>
+                                <td>@FormatDateTime(appEvent.CreatedAt)</td>
+                                <td><span class="status-pill info">@appEvent.EventType</span></td>
+                                <td>@(appEvent.PoiName ?? "-")</td>
+                                <td><code>@ShortSession(appEvent.SessionId)</code></td>
+                                <td class="text-end">
+                                    <div class="code-stack align-items-end">
+                                        <code>@FormatCoordinate(appEvent.Latitude, appEvent.Longitude)</code>
+                                        <code>@(appEvent.DurationSeconds.HasValue ? FormatDuration(appEvent.DurationSeconds.Value) : "-")</code>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         }
     </section>
 </div>
@@ -136,48 +253,142 @@
     private SummaryDto? summary;
     private List<TopPoiDto>? topPois;
     private List<AvgDurationDto>? avgDurations;
+    private List<TrendDayDto>? weeklyTrend;
     private List<HeatmapPoint>? heatmapPoints;
-    private bool shouldRenderMap = false;
+    private List<AnalyticsEventDto>? recentEvents;
+    private bool shouldRenderMap;
+    private bool isLoading;
+    private string? message;
 
+    // Công dụng: kiểm tra phiên đăng nhập và tải dữ liệu analytics ban đầu.
     protected override async Task OnInitializedAsync()
     {
+        if (!Session.IsLoggedIn)
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
         await LoadData();
     }
 
+    // Công dụng: gọi các endpoint analytics để cập nhật toàn bộ dashboard.
     private async Task LoadData()
     {
-        var http = HttpFactory.CreateClient("WebAPI");
+        isLoading = true;
+        ClearMessage();
 
-        var active = await http.GetFromJsonAsync<ActiveDto>("/api/Analytics/active-users");
-        var sum = await http.GetFromJsonAsync<SumDto>("/api/Analytics/summary");
-
-        summary = new SummaryDto
+        try
         {
-            ActiveUsers = active?.ActiveUsers ?? 0,
-            Total = sum?.Total ?? 0,
-            TodayCount = sum?.TodayCount ?? 0,
-            TotalListens = sum?.TotalListens ?? 0
-        };
+            var http = HttpFactory.CreateClient("WebAPI");
+            var active = await http.GetFromJsonAsync<ActiveDto>("/api/Analytics/active-users");
+            var sum = await http.GetFromJsonAsync<SumDto>("/api/Analytics/summary");
 
-        topPois = await http.GetFromJsonAsync<List<TopPoiDto>>("/api/Analytics/top-pois");
-        avgDurations = await http.GetFromJsonAsync<List<AvgDurationDto>>("/api/Analytics/avg-duration");
-        heatmapPoints = await http.GetFromJsonAsync<List<HeatmapPoint>>("/api/Analytics/heatmap");
-        shouldRenderMap = heatmapPoints != null && heatmapPoints.Any();
-        StateHasChanged();
+            summary = new SummaryDto
+            {
+                ActiveUsers = active?.ActiveUsers ?? 0,
+                Total = sum?.Total ?? 0,
+                TodayCount = sum?.TodayCount ?? 0,
+                TotalListens = sum?.TotalListens ?? 0
+            };
+
+            topPois = await http.GetFromJsonAsync<List<TopPoiDto>>("/api/Analytics/top-pois") ?? new();
+            avgDurations = await http.GetFromJsonAsync<List<AvgDurationDto>>("/api/Analytics/avg-duration") ?? new();
+            weeklyTrend = await http.GetFromJsonAsync<List<TrendDayDto>>("/api/Analytics/trend?days=7") ?? new();
+            heatmapPoints = await http.GetFromJsonAsync<List<HeatmapPoint>>("/api/Analytics/heatmap") ?? new();
+            recentEvents = await http.GetFromJsonAsync<List<AnalyticsEventDto>>("/api/Analytics/events?take=30") ?? new();
+            shouldRenderMap = heatmapPoints.Any();
+        }
+        catch (Exception ex)
+        {
+            SetMessage($"Không thể tải analytics: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
     }
 
+    // Công dụng: render lại bản đồ Leaflet khi có dữ liệu heatmap mới.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldRenderMap && heatmapPoints != null && heatmapPoints.Any())
+        {
+            shouldRenderMap = false;
+            await JS.InvokeVoidAsync("loadHeatmap", heatmapPoints);
+        }
+    }
+
+    // Công dụng: tính độ rộng thanh xếp hạng POI theo lượt nghe lớn nhất.
     private int GetTopPoiWidth(int count)
     {
         var max = Math.Max(topPois?.Max(p => p.Count) ?? 0, 1);
         return Math.Clamp((int)Math.Round(count * 100m / max), 8, 100);
     }
 
+    // Công dụng: tính chiều cao cột biểu đồ tuần dựa trên giá trị lớn nhất đang hiển thị.
+    private int GetTrendHeight(int value)
+    {
+        if (value <= 0)
+        {
+            return 0;
+        }
+
+        var max = Math.Max(
+            weeklyTrend?
+                .SelectMany(d => new[] { d.UniqueDevices, d.AppOpens, d.QrScans, d.PoiListens })
+                .DefaultIfEmpty()
+                .Max() ?? 0,
+            1);
+
+        return Math.Clamp((int)Math.Round(value * 100m / max), 8, 100);
+    }
+
+    // Công dụng: tạo tooltip chi tiết cho từng ngày trên biểu đồ tuần.
+    private static string BuildTrendTitle(TrendDayDto day)
+        => $"{day.Label}: {day.UniqueDevices} active, {day.AppOpens} mở app, {day.QrScans} QR, {day.PoiListens} nghe POI";
+
+    // Công dụng: định dạng số giây thành phút và giây dễ đọc.
     private static string FormatDuration(int totalSeconds)
     {
         var minutes = totalSeconds / 60;
         var seconds = totalSeconds % 60;
         return $"{minutes}p {seconds}s";
     }
+
+    // Công dụng: định dạng thời gian event về dạng ngắn để xem nhanh.
+    private static string FormatDateTime(DateTime value) => value.ToLocalTime().ToString("dd/MM HH:mm");
+
+    // Công dụng: định dạng ngày ngắn cho trục biểu đồ tuần.
+    private static string FormatShortDate(DateTime value) => value.ToString("dd/MM");
+
+    // Công dụng: rút gọn session id để bảng lịch sử không bị dài.
+    private static string ShortSession(string? sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return "-";
+        }
+
+        return sessionId.Length <= 10 ? sessionId : sessionId[..10];
+    }
+
+    // Công dụng: định dạng tọa độ GPS nếu event có thông tin vị trí.
+    private static string FormatCoordinate(double? latitude, double? longitude)
+    {
+        if (latitude == null || longitude == null)
+        {
+            return "-";
+        }
+
+        return $"{latitude:0.0000}, {longitude:0.0000}";
+    }
+
+    // Công dụng: hiển thị lỗi tải dữ liệu analytics.
+    private void SetMessage(string text) => message = text;
+
+    // Công dụng: xóa thông báo lỗi hiện tại.
+    private void ClearMessage() => message = null;
 
     public class SummaryDto
     {
@@ -187,7 +398,10 @@
         public int TotalListens { get; set; }
     }
 
-    public class ActiveDto { public int ActiveUsers { get; set; } }
+    public class ActiveDto
+    {
+        public int ActiveUsers { get; set; }
+    }
 
     public class SumDto
     {
@@ -208,18 +422,35 @@
         public int AvgSeconds { get; set; }
     }
 
+    public class TrendDayDto
+    {
+        public DateTime Date { get; set; }
+        public string Label { get; set; } = "";
+        public int UniqueDevices { get; set; }
+        public int TotalEvents { get; set; }
+        public int AppOpens { get; set; }
+        public int QrScans { get; set; }
+        public int PoiListens { get; set; }
+        public int LocationUpdates { get; set; }
+    }
+
     public class HeatmapPoint
     {
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
+        public int Count { get; set; }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    public class AnalyticsEventDto
     {
-        if (shouldRenderMap && heatmapPoints != null && heatmapPoints.Any())
-        {
-            shouldRenderMap = false;
-            await JS.InvokeVoidAsync("loadHeatmap", heatmapPoints);
-        }
+        public int Id { get; set; }
+        public string SessionId { get; set; } = "";
+        public string EventType { get; set; } = "";
+        public int? PoiId { get; set; }
+        public string? PoiName { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? DurationSeconds { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

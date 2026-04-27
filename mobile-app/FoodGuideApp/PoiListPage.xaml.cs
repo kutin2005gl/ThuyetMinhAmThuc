@@ -1,4 +1,3 @@
-﻿using System.Text.Json;
 using Microsoft.Maui.ApplicationModel;
 using FoodGuideApp.Models;
 using FoodGuideApp.Services;
@@ -10,12 +9,15 @@ namespace FoodGuideApp;
 public partial class PoiListPage : ContentPage
 {
     private List<Poi> pois = new();
+    private readonly PoiService poiService = new();
 
+    // Công dụng: khởi tạo giao diện danh sách POI.
     public PoiListPage()
     {
         InitializeComponent();
     }
 
+    // Công dụng: tải lại POI, ngôn ngữ và khoảng cách khi màn danh sách xuất hiện.
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -27,24 +29,32 @@ public partial class PoiListPage : ContentPage
         string currentLanguage = Preferences.Get("app_language", "vi");
         var currentLocation = await TryGetLocationForDistanceAsync();
 
-        poiCollectionView.ItemsSource = pois.Select(p => new PoiListItemViewModel
+        poiCollectionView.ItemsSource = pois.Select(p =>
         {
-            Poi = p,
-            DisplayName = p.Name ?? LanguageManager.Get(
-                "Chưa có POI",
-                "No POI",
-                "暂无 POI",
-                "POI 없음",
-                "POIなし",
-                "Aucun POI"),
-            DisplayDescription = GetPoiTextByLanguage(p, currentLanguage),
-            ImageUrl = p.ImageUrl ?? "",
-            HasImage = !string.IsNullOrWhiteSpace(p.ImageUrl),
-            HasNoImage = string.IsNullOrWhiteSpace(p.ImageUrl),
-            DisplayDistance = GetDisplayDistance(p, currentLocation)
+            var imageSource = CreateCachedImageSource(p.ImageUrl);
+
+            return new PoiListItemViewModel
+            {
+                Poi = p,
+                DisplayName = p.Name ?? LanguageManager.Get(
+                    "Chưa có POI",
+                    "No POI",
+                    "暂无 POI",
+                    "POI 없음",
+                    "POIなし",
+                    "Aucun POI"),
+                DisplayDescription = GetPoiTextByLanguage(p, currentLanguage),
+                ImageUrl = p.ImageUrl ?? "",
+                ImageSource = imageSource,
+                HasImage = imageSource != null,
+                HasNoImage = imageSource == null,
+                DisplayDistance = GetDisplayDistance(p, currentLocation),
+                DisplayLanguage = GetLanguageBadge(currentLanguage)
+            };
         }).ToList();
     }
 
+    // Công dụng: áp dụng nội dung tiêu đề theo ngôn ngữ đang chọn.
     private void ApplyLanguageToUI()
     {
         Title = LanguageManager.Get("POI", "POIs", "兴趣点", "POI", "POI", "POI");
@@ -58,36 +68,28 @@ public partial class PoiListPage : ContentPage
             "Liste des lieux");
     }
 
+    // Công dụng: tải danh sách POI từ API mobile đang dùng.
     private async Task<List<Poi>> LoadPois()
+        => await poiService.GetPoisAsync();
+
+    // Công dụng: tạo nguồn ảnh remote có cache ngắn hạn, tránh tải lại ảnh POI khi mở danh sách nhiều lần.
+    private static ImageSource? CreateCachedImageSource(string? imageUrl)
     {
-        try
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
-            using var httpClient = new HttpClient();
-            httpClient.BaseAddress = new Uri($"{AppConfig.BaseUrl}/");
-            GuestSessionService.AttachTo(httpClient);
-            httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
-
-            var res = await httpClient.GetAsync("api/poi");
-            res.EnsureSuccessStatusCode();
-
-            var json = await res.Content.ReadAsStringAsync();
-
-            System.Diagnostics.Debug.WriteLine($"[POI LIST JSON] {json}");
-
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            };
-
-            return JsonSerializer.Deserialize<List<Poi>>(json, options) ?? new List<Poi>();
+            return null;
         }
-        catch (Exception ex)
+
+        return new UriImageSource
         {
-            System.Diagnostics.Debug.WriteLine($"[POI LIST ERROR] {ex}");
-            return new List<Poi>();
-        }
+            Uri = uri,
+            CachingEnabled = true,
+            CacheValidity = TimeSpan.FromDays(3)
+        };
     }
 
+    // Công dụng: lưu POI được chọn vào Preferences rồi mở trang chi tiết hiện có.
     private async void OnPoiSelected(object sender, SelectionChangedEventArgs e)
     {
         var selectedItem = e.CurrentSelection.FirstOrDefault() as PoiListItemViewModel;
@@ -152,6 +154,7 @@ public partial class PoiListPage : ContentPage
         await Navigation.PushAsync(new PoiInfoPage());
     }
 
+    // Công dụng: lấy nội dung mô tả POI theo ngôn ngữ đang chọn, có fallback về tiếng Việt.
     private string GetPoiTextByLanguage(Poi poi, string currentLanguage)
     {
         if (poi == null)
@@ -190,12 +193,14 @@ public partial class PoiListPage : ContentPage
         return "";
     }
 
+    // Công dụng: kiểm tra tọa độ POI có nằm trong giới hạn hợp lệ hay không.
     private bool IsValidCoordinate(double latitude, double longitude)
     {
         return latitude >= -90 && latitude <= 90 &&
                longitude >= -180 && longitude <= 180;
     }
 
+    // Công dụng: lấy vị trí gần nhất của thiết bị để tính khoảng cách hiển thị trong danh sách.
     private async Task<Location?> TryGetLocationForDistanceAsync()
     {
         try
@@ -216,6 +221,7 @@ public partial class PoiListPage : ContentPage
         }
     }
 
+    // Công dụng: định dạng khoảng cách từ vị trí hiện tại đến POI cho card danh sách.
     private string GetDisplayDistance(Poi poi, Location? currentLocation)
     {
         if (currentLocation == null || !IsValidCoordinate(poi.Latitude, poi.Longitude))
@@ -239,14 +245,30 @@ public partial class PoiListPage : ContentPage
             : $"{distanceMeters:0} m";
     }
 
+    // Công dụng: rút gọn ngôn ngữ đang chọn thành badge nhỏ cho từng card POI.
+    private string GetLanguageBadge(string language)
+    {
+        return (language ?? "vi").Trim().ToLowerInvariant() switch
+        {
+            "en" => "EN",
+            "zh" => "中文",
+            "ko" => "한국어",
+            "ja" => "日本語",
+            "fr" => "FR",
+            _ => "VI"
+        };
+    }
+
     public class PoiListItemViewModel
     {
         public Poi Poi { get; set; } = new();
         public string DisplayName { get; set; } = "";
         public string DisplayDescription { get; set; } = "";
         public string ImageUrl { get; set; } = "";
+        public ImageSource? ImageSource { get; set; }
         public bool HasImage { get; set; }
         public bool HasNoImage { get; set; } = true;
         public string DisplayDistance { get; set; } = "";
+        public string DisplayLanguage { get; set; } = "";
     }
 }

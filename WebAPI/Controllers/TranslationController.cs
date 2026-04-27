@@ -12,11 +12,13 @@ public class TranslationController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly TranslateService _translator;
+    private readonly ILogger<TranslationController> _logger;
 
-    public TranslationController(AppDbContext db, TranslateService translator)
+    public TranslationController(AppDbContext db, TranslateService translator, ILogger<TranslationController> logger)
     {
         _db = db;
         _translator = translator;
+        _logger = logger;
     }
 
     [HttpGet("{poiId}")]
@@ -89,7 +91,7 @@ public class TranslationController : ControllerBase
             catch (Exception ex)
             {
                 // Nếu lỗi 1 ngôn ngữ thì bỏ qua để dịch tiếp ngôn ngữ khác
-                Console.WriteLine($"Lỗi dịch sang {lang.Code}: {ex.Message}");
+                _logger.LogWarning(ex, "Translation failed for language {LanguageCode}", lang.Code);
             }
         }
 

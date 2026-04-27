@@ -3,15 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="FoodGuideApp.SettingsPage"
              Title="Cài đặt"
-             BackgroundColor="#F4F7F6">
+             BackgroundColor="#F6F7FB">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20,18,20,28" Spacing="18">
+        <VerticalStackLayout Padding="18,16,18,28" Spacing="16">
 
             <Border BackgroundColor="#0F172A"
                     StrokeThickness="0"
                     StrokeShape="RoundRectangle 28"
-                    Padding="22">
+                    Padding="20">
                 <Border.Shadow>
                     <Shadow Brush="#0F172A" Offset="0,12" Radius="24" Opacity="0.16" />
                 </Border.Shadow>
@@ -33,12 +33,12 @@
             </Border>
 
             <Border BackgroundColor="White"
-                    Stroke="#E2E8F0"
+                    Stroke="#E5E7EB"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 24"
                     Padding="18">
                 <Border.Shadow>
-                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.08" />
                 </Border.Shadow>
 
                 <VerticalStackLayout Spacing="14">
@@ -47,7 +47,7 @@
                                Text="Ngôn ngữ"
                                FontSize="20"
                                FontAttributes="Bold"
-                               TextColor="#0F172A" />
+                               TextColor="#111827" />
 
                         <Label x:Name="languageDescLabel"
                                Text="Chọn ngôn ngữ hiển thị / thuyết minh"
@@ -59,21 +59,32 @@
                     <Border x:Name="langViBorder"
                             Stroke="#CBD5E1"
                             StrokeThickness="1"
-                            StrokeShape="RoundRectangle 16"
+                            StrokeShape="RoundRectangle 18"
                             BackgroundColor="#FFFFFF"
                             Padding="14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="vi" />
+                        </Border.GestureRecognizers>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <Label Text="VI"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="#0F766E"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="Tiếng Việt"
-                                   FontSize="16"
-                                   FontAttributes="Bold"
-                                   TextColor="#0F172A"
-                                   VerticalOptions="Center" />
+                            <Border BackgroundColor="#ECFDF5"
+                                    Stroke="#A7F3D0"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="10,6"
+                                    VerticalOptions="Center">
+                                <Label Text="VI"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="#047857" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="Tiếng Việt"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827" />
+                                <Label Text="Ngôn ngữ mặc định cho demo"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
                             <RadioButton x:Name="viRadioButton"
                                          Grid.Column="2"
                                          GroupName="Language"
@@ -85,20 +96,32 @@
                     <Border x:Name="langEnBorder"
                             Stroke="#CBD5E1"
                             StrokeThickness="1"
-                            StrokeShape="RoundRectangle 16"
+                            StrokeShape="RoundRectangle 18"
                             BackgroundColor="#FFFFFF"
                             Padding="14">
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="en" />
+                        </Border.GestureRecognizers>
                         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                            <Label Text="EN"
-                                   FontSize="13"
-                                   FontAttributes="Bold"
-                                   TextColor="#2563EB"
-                                   VerticalOptions="Center" />
-                            <Label Grid.Column="1"
-                                   Text="English"
-                                   FontSize="16"
-                                   TextColor="#0F172A"
-                                   VerticalOptions="Center" />
+                            <Border BackgroundColor="#EEF2FF"
+                                    Stroke="#C7D2FE"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="10,6"
+                                    VerticalOptions="Center">
+                                <Label Text="EN"
+                                       FontSize="12"
+                                       FontAttributes="Bold"
+                                       TextColor="#3730A3" />
+                            </Border>
+                            <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                                <Label Text="English"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827" />
+                                <Label Text="Display and narration"
+                                       FontSize="12"
+                                       TextColor="#64748B" />
+                            </VerticalStackLayout>
                             <RadioButton x:Name="enRadioButton"
                                          Grid.Column="2"
                                          GroupName="Language"
@@ -107,17 +130,21 @@
                         </Grid>
                     </Border>
 
-                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="12">
+                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="10">
                         <Border x:Name="langZhBorder"
                                 Stroke="#CBD5E1"
                                 StrokeThickness="1"
-                                StrokeShape="RoundRectangle 16"
+                                StrokeShape="RoundRectangle 18"
                                 BackgroundColor="#FFFFFF"
-                                Padding="14">
+                                Padding="12">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="zh" />
+                            </Border.GestureRecognizers>
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label Text="中文"
                                        FontSize="16"
-                                       TextColor="#0F172A"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827"
                                        VerticalOptions="Center" />
                                 <RadioButton x:Name="zhRadioButton"
                                              Grid.Column="1"
@@ -131,13 +158,17 @@
                                 Grid.Column="1"
                                 Stroke="#CBD5E1"
                                 StrokeThickness="1"
-                                StrokeShape="RoundRectangle 16"
+                                StrokeShape="RoundRectangle 18"
                                 BackgroundColor="#FFFFFF"
-                                Padding="14">
+                                Padding="12">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="ko" />
+                            </Border.GestureRecognizers>
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label Text="한국어"
                                        FontSize="16"
-                                       TextColor="#0F172A"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827"
                                        VerticalOptions="Center" />
                                 <RadioButton x:Name="koRadioButton"
                                              Grid.Column="1"
@@ -151,13 +182,17 @@
                                 Grid.Row="1"
                                 Stroke="#CBD5E1"
                                 StrokeThickness="1"
-                                StrokeShape="RoundRectangle 16"
+                                StrokeShape="RoundRectangle 18"
                                 BackgroundColor="#FFFFFF"
-                                Padding="14">
+                                Padding="12">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="ja" />
+                            </Border.GestureRecognizers>
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label Text="日本語"
                                        FontSize="16"
-                                       TextColor="#0F172A"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827"
                                        VerticalOptions="Center" />
                                 <RadioButton x:Name="jaRadioButton"
                                              Grid.Column="1"
@@ -172,13 +207,17 @@
                                 Grid.Column="1"
                                 Stroke="#CBD5E1"
                                 StrokeThickness="1"
-                                StrokeShape="RoundRectangle 16"
+                                StrokeShape="RoundRectangle 18"
                                 BackgroundColor="#FFFFFF"
-                                Padding="14">
+                                Padding="12">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnLanguageOptionTapped" CommandParameter="fr" />
+                            </Border.GestureRecognizers>
                             <Grid ColumnDefinitions="*,Auto">
                                 <Label Text="Français"
                                        FontSize="16"
-                                       TextColor="#0F172A"
+                                       FontAttributes="Bold"
+                                       TextColor="#111827"
                                        VerticalOptions="Center" />
                                 <RadioButton x:Name="frRadioButton"
                                              Grid.Column="1"
@@ -192,26 +231,62 @@
             </Border>
 
             <Border BackgroundColor="White"
-                    Stroke="#E2E8F0"
+                    Stroke="#E5E7EB"
                     StrokeThickness="1"
                     StrokeShape="RoundRectangle 24"
                     Padding="18">
                 <Border.Shadow>
-                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.10" />
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.08" />
                 </Border.Shadow>
 
-                <VerticalStackLayout Spacing="12">
-                    <Label x:Name="radiusTitleLabel"
-                           Text="Bán kính geofence"
-                           FontSize="20"
-                           FontAttributes="Bold"
-                           TextColor="#0F172A" />
+                <VerticalStackLayout Spacing="13">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Spacing="4">
+                            <Label x:Name="radiusTitleLabel"
+                                   Text="Bán kính geofence"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#111827" />
 
-                    <Label x:Name="radiusHintLabel"
-                           Text="Nhập khoảng cách kích hoạt thuyết minh khi đến gần POI"
-                           FontSize="14"
-                           TextColor="#64748B"
-                           LineBreakMode="WordWrap" />
+                            <Label x:Name="radiusHintLabel"
+                                   Text="Chỉnh nhẹ khoảng cách kích hoạt thuyết minh khi đến gần POI"
+                                   FontSize="14"
+                                   TextColor="#64748B"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#ECFDF5"
+                                Stroke="#A7F3D0"
+                                StrokeShape="RoundRectangle 16"
+                                Padding="10,6"
+                                VerticalOptions="Start">
+                            <Label x:Name="radiusValueLabel"
+                                   Text="30 m"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#047857" />
+                        </Border>
+                    </Grid>
+
+                    <Slider x:Name="radiusSlider"
+                            Minimum="5"
+                            Maximum="100"
+                            Value="30"
+                            MinimumTrackColor="#0F766E"
+                            MaximumTrackColor="#E2E8F0"
+                            ThumbColor="#0F766E"
+                            ValueChanged="OnRadiusSliderValueChanged" />
+
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Label Text="5m"
+                               FontSize="12"
+                               TextColor="#94A3B8" />
+                        <Label Grid.Column="2"
+                               Text="100m"
+                               FontSize="12"
+                               TextColor="#94A3B8" />
+                    </Grid>
 
                     <Border Stroke="#CBD5E1"
                             StrokeThickness="1"
@@ -221,13 +296,14 @@
                         <Entry x:Name="radiusEntry"
                                Placeholder="Ví dụ: 30"
                                Keyboard="Numeric"
-                               TextColor="#0F172A"
+                               TextChanged="OnRadiusEntryTextChanged"
+                               TextColor="#111827"
                                PlaceholderColor="#94A3B8"
                                BackgroundColor="Transparent" />
                     </Border>
 
                     <Label x:Name="radiusSuggestLabel"
-                           Text="Gợi ý: 20–40m ngoài trời, 10–20m khu vực đông/nhỏ"
+                           Text="Gợi ý: 20-40m ngoài trời, 10-20m khu vực đông/nhỏ"
                            FontSize="12"
                            TextColor="#94A3B8"
                            LineBreakMode="WordWrap" />

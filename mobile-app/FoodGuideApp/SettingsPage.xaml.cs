@@ -1,4 +1,4 @@
-﻿using FoodGuideApp.Services;
+using FoodGuideApp.Services;
 using Microsoft.Maui.Storage;
 
 namespace FoodGuideApp;
@@ -6,7 +6,9 @@ namespace FoodGuideApp;
 public partial class SettingsPage : ContentPage
 {
     private string selectedLanguage = "vi";
+    private bool isSyncingRadius = false;
 
+    // Công dụng: khởi tạo giao diện cài đặt và nạp cấu hình đã lưu.
     public SettingsPage()
     {
         InitializeComponent();
@@ -14,6 +16,7 @@ public partial class SettingsPage : ContentPage
         ApplyLanguageToUI();
     }
 
+    // Công dụng: làm mới lựa chọn ngôn ngữ và bán kính mỗi khi mở lại trang cài đặt.
     protected override void OnAppearing()
     {
         base.OnAppearing();
@@ -21,6 +24,7 @@ public partial class SettingsPage : ContentPage
         ApplyLanguageToUI();
     }
 
+    // Công dụng: đọc ngôn ngữ và bán kính geofence từ Preferences để đồng bộ UI.
     private void LoadSettings()
     {
         selectedLanguage = Preferences.Get("app_language", "vi");
@@ -29,7 +33,11 @@ public partial class SettingsPage : ContentPage
         if (savedRadius <= 0)
             savedRadius = 30.0;
 
+        isSyncingRadius = true;
         radiusEntry.Text = savedRadius.ToString("0");
+        radiusSlider.Value = Math.Clamp(savedRadius, radiusSlider.Minimum, radiusSlider.Maximum);
+        radiusValueLabel.Text = $"{savedRadius:0} m";
+        isSyncingRadius = false;
 
         viRadioButton.IsChecked = selectedLanguage == "vi";
         enRadioButton.IsChecked = selectedLanguage == "en";
@@ -37,8 +45,11 @@ public partial class SettingsPage : ContentPage
         koRadioButton.IsChecked = selectedLanguage == "ko";
         jaRadioButton.IsChecked = selectedLanguage == "ja";
         frRadioButton.IsChecked = selectedLanguage == "fr";
+
+        UpdateLanguageCards();
     }
 
+    // Công dụng: áp dụng toàn bộ chữ trên trang Settings theo ngôn ngữ đang chọn.
     private void ApplyLanguageToUI()
     {
         Title = LanguageManager.Get(
@@ -51,12 +62,12 @@ public partial class SettingsPage : ContentPage
         );
 
         titleLabel.Text = LanguageManager.Get(
-            "⚙️ Cài đặt",
-            "⚙️ Settings",
-            "⚙️ 设置",
-            "⚙️ 설정",
-            "⚙️ 設定",
-            "⚙️ Paramètres"
+            "Cài đặt",
+            "Settings",
+            "设置",
+            "설정",
+            "設定",
+            "Paramètres"
         );
 
         subTitleLabel.Text = LanguageManager.Get(
@@ -96,12 +107,12 @@ public partial class SettingsPage : ContentPage
         );
 
         radiusHintLabel.Text = LanguageManager.Get(
-            "Nhập khoảng cách kích hoạt thuyết minh khi đến gần POI",
-            "Enter the distance to trigger narration when approaching a POI",
-            "输入接近 POI 时触发语音讲解的距离",
-            "POI에 가까워졌을 때 음성 안내를 시작할 거리를 입력하세요",
-            "POIに近づいたときに案内を開始する距離を入力してください",
-            "Entrez la distance pour déclencher la narration à l’approche d’un POI"
+            "Chỉnh nhẹ khoảng cách kích hoạt thuyết minh khi đến gần POI",
+            "Fine-tune the distance that triggers narration near a POI",
+            "微调接近 POI 时触发语音讲解的距离",
+            "POI에 가까워졌을 때 음성 안내를 시작할 거리를 조정하세요",
+            "POIに近づいたときに案内を開始する距離を調整します",
+            "Ajuster la distance qui déclenche la narration près d'un POI"
         );
 
         radiusEntry.Placeholder = LanguageManager.Get(
@@ -114,12 +125,12 @@ public partial class SettingsPage : ContentPage
         );
 
         radiusSuggestLabel.Text = LanguageManager.Get(
-            "Gợi ý: 20–40m ngoài trời, 10–20m khu vực đông/nhỏ",
-            "Suggested: 20–40m outdoors, 10–20m in dense/small areas",
-            "建议：室外20–40米，小区域10–20米",
-            "권장: 실외 20–40m, 좁은 공간 10–20m",
-            "推奨: 屋外20〜40m、小さい場所10〜20m",
-            "Conseil : 20–40 m extérieur, 10–20 m zones denses"
+            "Gợi ý: 20-40m ngoài trời, 10-20m khu vực đông/nhỏ",
+            "Suggested: 20-40m outdoors, 10-20m in dense/small areas",
+            "建议：室外20-40米，小区域10-20米",
+            "권장: 실외 20-40m, 좁은 공간 10-20m",
+            "推奨: 屋外20-40m、小さい場所10-20m",
+            "Conseil : 20-40 m extérieur, 10-20 m zones denses"
         );
 
         saveButton.Text = LanguageManager.Get(
@@ -141,6 +152,7 @@ public partial class SettingsPage : ContentPage
         );
     }
 
+    // Công dụng: nhận thay đổi từ RadioButton và cập nhật lựa chọn ngôn ngữ hiện tại.
     private void OnLanguageChecked(object sender, CheckedChangedEventArgs e)
     {
         if (!e.Value)
@@ -149,9 +161,69 @@ public partial class SettingsPage : ContentPage
         if (sender is RadioButton radio && radio.Value != null)
         {
             selectedLanguage = radio.Value.ToString() ?? "vi";
+            UpdateLanguageCards();
         }
     }
 
+    // Công dụng: cho phép chạm vào cả card ngôn ngữ để chọn nhanh.
+    private void OnLanguageOptionTapped(object sender, TappedEventArgs e)
+    {
+        if (sender is TapGestureRecognizer tap && tap.CommandParameter is string language)
+        {
+            SelectLanguage(language);
+        }
+    }
+
+    // Công dụng: đồng bộ radio và card khi người dùng chọn một ngôn ngữ.
+    private void SelectLanguage(string language)
+    {
+        selectedLanguage = language;
+
+        viRadioButton.IsChecked = selectedLanguage == "vi";
+        enRadioButton.IsChecked = selectedLanguage == "en";
+        zhRadioButton.IsChecked = selectedLanguage == "zh";
+        koRadioButton.IsChecked = selectedLanguage == "ko";
+        jaRadioButton.IsChecked = selectedLanguage == "ja";
+        frRadioButton.IsChecked = selectedLanguage == "fr";
+
+        UpdateLanguageCards();
+    }
+
+    // Công dụng: đồng bộ ô nhập bán kính khi kéo slider.
+    private void OnRadiusSliderValueChanged(object sender, ValueChangedEventArgs e)
+    {
+        if (isSyncingRadius)
+            return;
+
+        double radius = Math.Round(e.NewValue);
+
+        isSyncingRadius = true;
+        radiusEntry.Text = radius.ToString("0");
+        radiusValueLabel.Text = $"{radius:0} m";
+        isSyncingRadius = false;
+    }
+
+    // Công dụng: đồng bộ slider khi người dùng nhập bán kính bằng bàn phím.
+    private void OnRadiusEntryTextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (isSyncingRadius)
+            return;
+
+        string radiusText = e.NewTextValue?.Trim() ?? "";
+        if (!double.TryParse(radiusText, out double radius))
+            return;
+
+        radiusValueLabel.Text = $"{radius:0} m";
+
+        if (radius < radiusSlider.Minimum || radius > radiusSlider.Maximum)
+            return;
+
+        isSyncingRadius = true;
+        radiusSlider.Value = radius;
+        isSyncingRadius = false;
+    }
+
+    // Công dụng: lưu ngôn ngữ và bán kính geofence vào Preferences.
     private async void OnSaveSettingsClicked(object sender, EventArgs e)
     {
         string radiusText = radiusEntry.Text?.Trim() ?? "";
@@ -194,6 +266,7 @@ public partial class SettingsPage : ContentPage
         Preferences.Set("geofence_radius", radius);
 
         ApplyLanguageToUI();
+        UpdateLanguageCards();
 
         statusLabel.Text = LanguageManager.Get(
             $"Đã lưu: ngôn ngữ = {selectedLanguage}, bán kính = {radius:0}m",
@@ -203,5 +276,24 @@ public partial class SettingsPage : ContentPage
             $"保存済み: 言語 = {selectedLanguage}, 半径 = {radius:0}m",
             $"Enregistré : langue = {selectedLanguage}, rayon = {radius:0}m"
         );
+    }
+
+    // Công dụng: cập nhật màu viền/nền để thấy rõ ngôn ngữ đang được chọn.
+    private void UpdateLanguageCards()
+    {
+        ApplyLanguageCardStyle(langViBorder, selectedLanguage == "vi");
+        ApplyLanguageCardStyle(langEnBorder, selectedLanguage == "en");
+        ApplyLanguageCardStyle(langZhBorder, selectedLanguage == "zh");
+        ApplyLanguageCardStyle(langKoBorder, selectedLanguage == "ko");
+        ApplyLanguageCardStyle(langJaBorder, selectedLanguage == "ja");
+        ApplyLanguageCardStyle(langFrBorder, selectedLanguage == "fr");
+    }
+
+    // Công dụng: áp dụng style cho từng card ngôn ngữ theo trạng thái chọn/bỏ chọn.
+    private void ApplyLanguageCardStyle(Border border, bool isSelected)
+    {
+        border.BackgroundColor = Color.FromArgb(isSelected ? "#ECFDF5" : "#FFFFFF");
+        border.Stroke = new SolidColorBrush(Color.FromArgb(isSelected ? "#0F766E" : "#CBD5E1"));
+        border.StrokeThickness = isSelected ? 2 : 1;
     }
 }

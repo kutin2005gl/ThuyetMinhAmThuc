@@ -60,8 +60,8 @@
 <PropertyGroup Condition="$(TargetFramework.Contains('-android')) and '$(Configuration)' == 'Release'">
   <RunAOTCompilation>false</RunAOTCompilation>
   <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
-  <AndroidLinkMode>None</AndroidLinkMode>
-  <PublishTrimmed>false</PublishTrimmed>
+  <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+  <PublishTrimmed>true</PublishTrimmed>
   <AndroidPackageFormat>apk</AndroidPackageFormat>
 </PropertyGroup>
 </Project>

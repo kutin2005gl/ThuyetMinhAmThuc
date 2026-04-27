@@ -5,7 +5,14 @@ namespace WebAPI.Services;
 public class TranslateService
 {
     private readonly GoogleTranslator _translator = new();
+    private readonly ILogger<TranslateService> _logger;
 
+    public TranslateService(ILogger<TranslateService> logger)
+    {
+        _logger = logger;
+    }
+
+    // Công dụng: dịch nội dung thuyết minh sang ngôn ngữ đích, fallback về text gốc nếu dịch lỗi.
     public async Task<string> TranslateAsync(string text, string fromLang, string toLang)
     {
         try
@@ -22,7 +29,7 @@ public class TranslateService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Lỗi Dịch]: {ex.Message}");
+            _logger.LogWarning(ex, "Translation service failed from {SourceLanguage} to {TargetLanguage}", fromLang, toLang);
             return text; // Trả về text gốc nếu lỗi
         }
     }

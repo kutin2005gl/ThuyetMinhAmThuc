@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="FoodGuideApp.MainPage"
+             Title="Trang chủ"
+             BackgroundColor="#F6F7FB">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="18,16,18,28" Spacing="16">
+
+            <Border BackgroundColor="#0F172A"
+                    StrokeThickness="0"
+                    StrokeShape="RoundRectangle 28"
+                    Padding="20">
+                <Border.Shadow>
+                    <Shadow Brush="#0F172A" Offset="0,12" Radius="24" Opacity="0.16" />
+                </Border.Shadow>
+
+                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="8">
+                    <Label x:Name="appTitleLabel"
+                           Text="HỆ THỐNG THUYẾT MINH ẨM THỰC"
+                           FontSize="12"
+                           FontAttributes="Bold"
+                           TextColor="#A7F3D0"
+                           LineBreakMode="WordWrap" />
+
+                    <Border Grid.Column="1"
+                            BackgroundColor="#16332F"
+                            Stroke="#2DD4BF"
+                            StrokeShape="RoundRectangle 14"
+                            Padding="10,5"
+                            VerticalOptions="Start">
+                        <Label Text="DEMO"
+                               FontSize="11"
+                               FontAttributes="Bold"
+                               TextColor="#CCFBF1" />
+                    </Border>
+
+                    <Label x:Name="subTitleLabel"
+                           Grid.Row="1"
+                           Grid.ColumnSpan="2"
+                           Text="PoC GPS Tracking"
+                           FontSize="30"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           LineBreakMode="WordWrap" />
+
+                    <Label Grid.Row="2"
+                           Grid.ColumnSpan="2"
+                           Text="Theo dõi vị trí, nhận diện POI gần nhất và mở nhanh nội dung thuyết minh."
+                           FontSize="14"
+                           TextColor="#CBD5E1"
+                           LineBreakMode="WordWrap" />
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="16">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,8" Radius="18" Opacity="0.08" />
+                </Border.Shadow>
+
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="Trạng thái GPS"
+                                   FontSize="13"
+                                   FontAttributes="Bold"
+                                   TextColor="#64748B" />
+
+                            <Label x:Name="locationLabel"
+                                   Text="Chưa có vị trí"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="#111827"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#ECFDF5"
+                                Stroke="#A7F3D0"
+                                StrokeShape="RoundRectangle 18"
+                                Padding="10,6"
+                                VerticalOptions="Start">
+                            <Label Text="LIVE"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#047857" />
+                        </Border>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                        <Button x:Name="startTrackingButton"
+                                Text="Bắt đầu theo dõi"
+                                Clicked="OnStartTrackingClicked"
+                                BackgroundColor="#0F766E"
+                                TextColor="White"
+                                CornerRadius="16"
+                                FontAttributes="Bold"
+                                HeightRequest="50" />
+
+                        <Button x:Name="stopTrackingButton"
+                                Grid.Column="1"
+                                Text="Dừng theo dõi"
+                                Clicked="OnStopTrackingClicked"
+                                BackgroundColor="#FEF2F2"
+                                TextColor="#B91C1C"
+                                BorderColor="#FECACA"
+                                BorderWidth="1"
+                                CornerRadius="16"
+                                FontAttributes="Bold"
+                                HeightRequest="50" />
+                    </Grid>
+
+                    <Button x:Name="scanQrButton"
+                            Text="Quét QR"
+                            Clicked="OnScanQrClicked"
+                            BackgroundColor="#FFFBEB"
+                            TextColor="#92400E"
+                            BorderColor="#FDE68A"
+                            BorderWidth="1"
+                            CornerRadius="16"
+                            FontAttributes="Bold"
+                            HeightRequest="48" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Border BackgroundColor="White"
+                    Stroke="#E5E7EB"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="0">
+                <Border.Shadow>
+                    <Shadow Brush="#64748B" Offset="0,10" Radius="22" Opacity="0.10" />
+                </Border.Shadow>
+
+                <Grid RowDefinitions="Auto,420">
+                    <Grid Padding="16,15" ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="3">
+                            <Label Text="Bản đồ tham quan"
+                                   FontSize="19"
+                                   FontAttributes="Bold"
+                                   TextColor="#111827" />
+                            <Label x:Name="resultLabel"
+                                   Text="Chưa tải POI"
+                                   FontSize="13"
+                                   TextColor="#64748B"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+
+                        <Border Grid.Column="1"
+                                BackgroundColor="#EEF2FF"
+                                Stroke="#C7D2FE"
+                                StrokeShape="RoundRectangle 14"
+                                Padding="10,6"
+                                VerticalOptions="Start">
+                            <Label Text="ALL POI"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="#3730A3" />
+                        </Border>
+                    </Grid>
+
+                    <Grid Grid.Row="1">
+                        <WebView x:Name="mapWebView"
+                                 Navigated="OnMapWebViewNavigated" />
+
+                        <Border BackgroundColor="#F8FAFC"
+                                Stroke="#E2E8F0"
+                                StrokeShape="RoundRectangle 18"
+                                Padding="12,9"
+                                Margin="14"
+                                HorizontalOptions="Start"
+                                VerticalOptions="End">
+                            <HorizontalStackLayout Spacing="10">
+                                <HorizontalStackLayout Spacing="5">
+                                    <BoxView WidthRequest="10"
+                                             HeightRequest="10"
+                                             CornerRadius="5"
+                                             BackgroundColor="#2563EB"
+                                             VerticalOptions="Center" />
+                                    <Label Text="Bạn"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="#334155" />
+                                </HorizontalStackLayout>
+
+                                <HorizontalStackLayout Spacing="5">
+                                    <BoxView WidthRequest="10"
+                                             HeightRequest="10"
+                                             CornerRadius="5"
+                                             BackgroundColor="#F59E0B"
+                                             VerticalOptions="Center" />
+                                    <Label Text="Gần nhất"
+                                           FontSize="12"
+                                           FontAttributes="Bold"
+                                           TextColor="#334155" />
+                                </HorizontalStackLayout>
+                            </HorizontalStackLayout>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="#FFF7ED"
+                    Stroke="#FED7AA"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 24"
+                    Padding="16">
+                <Border.Shadow>
+                    <Shadow Brush="#FDBA74" Offset="0,8" Radius="18" Opacity="0.12" />
+                </Border.Shadow>
+
+                <VerticalStackLayout Spacing="13">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                        <Border BackgroundColor="#F97316"
+                                StrokeThickness="0"
+                                StrokeShape="RoundRectangle 14"
+                                WidthRequest="42"
+                                HeightRequest="42"
+                                VerticalOptions="Start">
+                            <Label Text="POI"
+                                   FontSize="11"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Border>
+
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="POI gần nhất"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="#7C2D12" />
+                            <Label x:Name="geofenceLabel"
+                                   Text="Chưa vào vùng geofence"
+                                   FontSize="14"
+                                   TextColor="#C2410C"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <Border BackgroundColor="White"
+                            Stroke="#FED7AA"
+                            StrokeShape="RoundRectangle 18"
+                            Padding="14">
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="12" RowSpacing="5">
+                            <Label x:Name="nearestPoiNameLabel"
+                                   Text="Chưa xác định POI gần nhất"
+                                   FontSize="17"
+                                   FontAttributes="Bold"
+                                   TextColor="#111827"
+                                   LineBreakMode="WordWrap" />
+
+                            <Border Grid.Column="1"
+                                    BackgroundColor="#FEF3C7"
+                                    Stroke="#FCD34D"
+                                    StrokeShape="RoundRectangle 14"
+                                    Padding="9,5"
+                                    VerticalOptions="Start">
+                                <Label x:Name="nearestStatusBadgeLabel"
+                                       Text="ĐANG CHỜ"
+                                       FontSize="11"
+                                       FontAttributes="Bold"
+                                       TextColor="#92400E" />
+                            </Border>
+
+                            <Label x:Name="nearestPoiDistanceLabel"
+                                   Grid.Row="1"
+                                   Grid.ColumnSpan="2"
+                                   Text="Bật theo dõi để hệ thống tự tìm điểm gần nhất."
+                                   FontSize="13"
+                                   TextColor="#64748B"
+                                   LineBreakMode="WordWrap" />
+                        </Grid>
+                    </Border>
+
+                    <Button x:Name="viewNearestPoiButton"
+                            Text="Xem POI gần nhất"
+                            Clicked="OnViewNearestPoiClicked"
+                            BackgroundColor="#2563EB"
+                            TextColor="White"
+                            CornerRadius="16"
+                            FontAttributes="Bold"
+                            HeightRequest="50"
+                            IsEnabled="False" />
+                </VerticalStackLayout>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

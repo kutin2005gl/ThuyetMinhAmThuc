@@ -19,9 +19,6 @@ namespace FoodGuideApp
         // Lưu trạng thái runtime của từng POI (đã vào, đã gần, cooldown...)
         private Dictionary<int, PoiRuntimeState> poiStates = new();
 
-        // HttpClient dùng để gọi API
-        private readonly HttpClient httpClient = new HttpClient();
-
         private bool isMapReady = false;
         private Poi? nearestPoiCurrent = null;
 
@@ -61,6 +58,7 @@ namespace FoodGuideApp
         private readonly TimeSpan poiSwitchDelay = TimeSpan.FromSeconds(2);
         private readonly TimeSpan poiReplayCooldown = TimeSpan.FromSeconds(30);
         private readonly AnalyticsService analytics = new();
+        private readonly PoiService poiService = new();
         private const string LeafletHtmlContent = """
 <!DOCTYPE html>
 <html>
@@ -68,7 +66,9 @@ namespace FoodGuideApp
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
+    html, body, #map { height: 100%; margin: 0; padding: 0; background: #e5eef6; }
+    .leaflet-popup-content-wrapper { border-radius: 14px; }
+    .leaflet-control-attribution { font-size: 10px; }
   </style>
 </head>
 <body>
@@ -99,10 +99,10 @@ namespace FoodGuideApp
     function setUserLocation(lat, lng) {
       if (!map) return;
       const icon = L.circleMarker([lat, lng], {
-        radius: 8,
+        radius: 9,
         color: '#ffffff',
         weight: 2,
-        fillColor: '#0078ff',
+        fillColor: '#2563eb',
         fillOpacity: 1
       });
 
@@ -120,13 +120,13 @@ namespace FoodGuideApp
 
       pois.forEach(p => {
         const marker = L.circleMarker([p.lat, p.lng], {
-          radius: p.isNearest ? 10 : 8,
-          color: p.isNearest ? '#000000' : '#ffffff',
+          radius: p.isNearest ? 12 : 7,
+          color: p.isNearest ? '#7c2d12' : '#ffffff',
           weight: p.isNearest ? 3 : 2,
-          fillColor: p.isNearest ? '#ffd700' : '#ff0000',
-          fillOpacity: 1
+          fillColor: p.isNearest ? '#f59e0b' : '#ef4444',
+          fillOpacity: p.isNearest ? 1 : 0.92
         });
-        marker.bindPopup(p.name);
+        marker.bindPopup(`<strong>${p.name}</strong>${p.isNearest ? '<br/><span style="color:#b45309;font-weight:700">POI gần nhất</span>' : ''}`);
         marker.addTo(poiLayer);
       });
     }
@@ -136,11 +136,13 @@ namespace FoodGuideApp
       geofenceLayer.clearLayers();
       const pois = JSON.parse(poisJson);
       pois.forEach(p => {
+        const stroke = p.isNearest ? 'rgba(245,158,11,0.95)' : 'rgba(239,68,68,0.65)';
+        const fill = p.isNearest ? 'rgba(245,158,11,0.18)' : 'rgba(239,68,68,0.12)';
         L.circle([p.lat, p.lng], {
           radius: Math.max(p.radius, 80),
-          color: 'rgba(255,0,0,0.9)',
-          fillColor: 'rgba(255,0,0,0.3)',
-          fillOpacity: 0.3,
+          color: stroke,
+          fillColor: fill,
+          fillOpacity: p.isNearest ? 0.26 : 0.18,
           weight: 2
         }).addTo(geofenceLayer);
       });
@@ -149,18 +151,11 @@ namespace FoodGuideApp
 </body>
 </html>
 """;
+        // Công dụng: khởi tạo trang map, audio queue và dữ liệu ban đầu.
         public MainPage(IAudioFocusService audioFocusService, IForegroundTrackingService foregroundTrackingService)
         {
             InitializeComponent();
             this.foregroundTrackingService = foregroundTrackingService;
-
-            // 🔥 KHỞI TẠO HTTP CLIENT + FIX NGROK
-            httpClient = new HttpClient
-            {
-                BaseAddress = new Uri(AppConfig.BaseUrl) // 👈 QUAN TRỌNG
-            };
-
-            httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
 
             // audio
             audioManager = new AudioQueueManager(audioFocusService);
@@ -177,19 +172,10 @@ namespace FoodGuideApp
             audioManager.Start();
 
             LoadAppSettings();
-            GuestSessionService.AttachTo(httpClient);
 
             _ = InitializeData();
         }
 
-
-        // Công dụng: chứa base URL API để app gọi dữ liệu POI
-        public static class AppConfig
-        {
-            public static string BaseUrl = "https://unruminant-meticulously-delois.ngrok-free.dev";
-        }
-
- //Stashed changes
         // Công dụng: khởi tạo dữ liệu ban đầu của trang
         private async Task InitializeData()
         {
@@ -213,71 +199,23 @@ namespace FoodGuideApp
             }
         }
 
-        // Công dụng: tải danh sách POI từ API
         // Công dụng: tải danh sách POI từ API và loại bỏ POI có tọa độ sai
         private async Task LoadPois()
         {
             try
             {
-                string url = $"{AppConfig.BaseUrl}/api/poi";
-
-                // 🔥 thêm dòng này
-                httpClient.DefaultRequestHeaders.Add("ngrok-skip-browser-warning", "true");
-
-                var json = await httpClient.GetStringAsync(url);
-
-                Debug.WriteLine("JSON API:");
-                Debug.WriteLine(json);
-
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                };
-
-                var data = JsonSerializer.Deserialize<List<Poi>>(json, options);
-
-                if (data == null)
-                {
-                    Debug.WriteLine("Deserialize bị null!");
-                    geoPois = new List<Poi>();
-                }
-                else
-                {
-                    geoPois = data
-                        .Where(p =>
-                        {
-                            bool valid = IsValidCoordinate(p.Latitude, p.Longitude);
-
-                            if (!valid)
-                            {
-                                Debug.WriteLine($"[POI INVALID] {p.Name} | Lat={p.Latitude} | Lng={p.Longitude}");
-                            }
-
-                            return valid;
-                        })
-                        .ToList();
-
-                    foreach (var poi in geoPois)
-                    {
-                        // fallback radius
-                        if (poi.RadiusMeters <= 0)
-                            poi.RadiusMeters = currentGeofenceRadius;
-
-                        // 👇 tự tính thêm (backend không có)
-                        poi.NearRadiusMeters = poi.RadiusMeters + 50;
-
-                        Debug.WriteLine($"[POI OK] {poi.Name} | radius={poi.RadiusMeters} | near={poi.NearRadiusMeters}");
-                    }
-                }
+                var data = await poiService.GetPoisAsync();
+                geoPois = NormalizePoisForTracking(data);
+                var cacheSuffix = poiService.LastResultFromCache ? " (cache)" : "";
 
                 Debug.WriteLine($"Đã tải {geoPois.Count} POI hợp lệ");
                 resultLabel.Text = LanguageManager.Get(
-                    $"Đã tải {geoPois.Count} POI",
-                    $"Loaded {geoPois.Count} POIs",
-                    $"已加载 {geoPois.Count} 个 POI",
-                    $"{geoPois.Count}개의 POI를 불러왔습니다",
-                    $"{geoPois.Count} 件のPOIを読み込みました",
-                    $"{geoPois.Count} POI chargés");
+                    $"Đã tải {geoPois.Count} POI{cacheSuffix}",
+                    $"Loaded {geoPois.Count} POIs{cacheSuffix}",
+                    $"已加载 {geoPois.Count} 个 POI{cacheSuffix}",
+                    $"{geoPois.Count}개의 POI를 불러왔습니다{cacheSuffix}",
+                    $"{geoPois.Count} 件のPOIを読み込みました{cacheSuffix}",
+                    $"{geoPois.Count} POI chargés{cacheSuffix}");
             }
             catch (Exception ex)
             {
@@ -292,7 +230,41 @@ namespace FoodGuideApp
             }
         }
 
-        // Công dụng: xử lý khi bấm nút bắt đầu theo dõi vị trí
+        // Công dụng: lọc POI có tọa độ hợp lệ và chuẩn hóa bán kính trước khi dùng cho map/geofence.
+        private List<Poi> NormalizePoisForTracking(IEnumerable<Poi> data)
+        {
+            var validPois = (data ?? Array.Empty<Poi>())
+                .Where(p =>
+                {
+                    bool valid = IsValidCoordinate(p.Latitude, p.Longitude);
+
+                    if (!valid)
+                    {
+                        Debug.WriteLine($"[POI INVALID] {p.Name} | Lat={p.Latitude} | Lng={p.Longitude}");
+                    }
+
+                    return valid;
+                })
+                .ToList();
+
+            foreach (var poi in validPois)
+            {
+                if (poi.RadiusMeters <= 0)
+                {
+                    poi.RadiusMeters = currentGeofenceRadius;
+                }
+
+                poi.NearRadiusMeters = poi.NearRadiusMeters > 0
+                    ? poi.NearRadiusMeters
+                    : poi.RadiusMeters + 50;
+
+                Debug.WriteLine($"[POI OK] {poi.Name} | radius={poi.RadiusMeters} | near={poi.NearRadiusMeters}");
+            }
+
+            return validPois;
+        }
+
+        // Công dụng: xử lý nút bắt đầu theo dõi vị trí.
         private async void OnStartTrackingClicked(object sender, EventArgs e)
         {
             if (isTracking) return;
@@ -350,7 +322,7 @@ namespace FoodGuideApp
 
             _ = Task.Run(() => StartTracking(trackingCts.Token));
         }
-        // Công dụng: xử lý khi bấm nút dừng theo dõi vị trí
+        // Công dụng: xử lý nút dừng theo dõi vị trí.
         private void OnStopTrackingClicked(object sender, EventArgs e)
         {
             if (!isTracking) return;
@@ -390,7 +362,7 @@ namespace FoodGuideApp
             });
         }
 
-        // Công dụng: vòng lặp theo dõi vị trí foreground theo nhịp ổn định, có retry/cooldown để giảm hao pin.
+        // Công dụng: chạy vòng lặp theo dõi vị trí và cập nhật UI theo dữ liệu GPS hiện có.
         private async Task StartTracking(CancellationToken cancellationToken)
         {
             int nullLocationCount = 0;
@@ -459,6 +431,7 @@ namespace FoodGuideApp
 
                                 MainThread.BeginInvokeOnMainThread(() =>
                                 {
+                                    UpdateNearestPoiSummary(nearestPoi.Poi, nearestPoi.Distance);
                                     _ = HighlightNearestPoi();
                                 });
                             }
@@ -538,7 +511,7 @@ namespace FoodGuideApp
             }
         }
 
-        // Công dụng: gửi vị trí lên analytics theo cooldown để không spam API và tiết kiệm pin/mạng.
+        // Công dụng: gửi analytics vị trí theo khoảng thời gian giãn cách để tránh ghi quá dày.
         private void TrackLocationIfNeeded(SensorLocation location)
         {
             var now = DateTime.UtcNow;
@@ -551,7 +524,7 @@ namespace FoodGuideApp
             _ = analytics.TrackLocation(location.Latitude, location.Longitude);
         }
 
-        // Công dụng: lấy vị trí hiện tại của thiết bị với timeout/retry và fallback vị trí gần nhất còn mới.
+        // Công dụng: lấy vị trí hiện tại hoặc vị trí gần nhất của thiết bị.
         private async Task<SensorLocation?> GetLocation(CancellationToken cancellationToken = default)
         {
             try
@@ -598,7 +571,6 @@ namespace FoodGuideApp
             }
         }
 
-        // Công dụng: kiểm tra khi người dùng đi vào geofence của POI nào
         // Công dụng: kiểm tra khi người dùng đi vào geofence của POI nào.
         // Hàm sẽ chọn POI phù hợp nhất theo ưu tiên và khoảng cách,
         // cập nhật trạng thái geofence trên giao diện,
@@ -929,6 +901,7 @@ namespace FoodGuideApp
             return "";
         }
 
+        // Công dụng: đánh dấu WebView bản đồ đã sẵn sàng rồi render POI/geofence lên map.
         private void OnMapWebViewNavigated(object sender, WebNavigatedEventArgs e)
         {
             isMapReady = true;
@@ -962,7 +935,7 @@ namespace FoodGuideApp
             });
         }
 
-        //highlight POI gan nhat
+        // Công dụng: render lại marker để POI gần nhất được highlight trên bản đồ.
         private async Task HighlightNearestPoi()
             => await RenderMapDataAsync();
 
@@ -970,6 +943,71 @@ namespace FoodGuideApp
         private async Task DrawGeofenceCircles()
             => await RenderMapDataAsync();
 
+        // Công dụng: cập nhật card POI gần nhất trên màn map mà không thay đổi logic tracking.
+        private void UpdateNearestPoiSummary(Poi? poi, double? distanceMeters)
+        {
+            if (poi == null)
+            {
+                nearestPoiNameLabel.Text = LanguageManager.Get(
+                    "Chưa xác định POI gần nhất",
+                    "Nearest POI not determined",
+                    "尚未确定最近 POI",
+                    "가장 가까운 POI 미확인",
+                    "最寄りPOIは未確認",
+                    "POI le plus proche non déterminé");
+
+                nearestPoiDistanceLabel.Text = LanguageManager.Get(
+                    "Bật theo dõi để hệ thống tự tìm điểm gần nhất.",
+                    "Start tracking so the app can find the nearest place.",
+                    "开启追踪以自动查找最近地点。",
+                    "추적을 시작하면 가장 가까운 장소를 찾습니다.",
+                    "追跡を開始すると最寄りスポットを探します。",
+                    "Lancez le suivi pour trouver le lieu le plus proche.");
+
+                nearestStatusBadgeLabel.Text = LanguageManager.Get(
+                    "ĐANG CHỜ",
+                    "WAITING",
+                    "等待中",
+                    "대기 중",
+                    "待機中",
+                    "EN ATTENTE");
+
+                viewNearestPoiButton.IsEnabled = false;
+                return;
+            }
+
+            nearestPoiNameLabel.Text = string.IsNullOrWhiteSpace(poi.Name)
+                ? LanguageManager.Get("Chưa có POI", "No POI", "暂无 POI", "POI 없음", "POIなし", "Aucun POI")
+                : poi.Name;
+
+            nearestPoiDistanceLabel.Text = distanceMeters.HasValue
+                ? LanguageManager.Get(
+                    $"Cách bạn khoảng {distanceMeters.Value:0} m",
+                    $"About {distanceMeters.Value:0} m away",
+                    $"距离约 {distanceMeters.Value:0} 米",
+                    $"약 {distanceMeters.Value:0} m 거리",
+                    $"約 {distanceMeters.Value:0} m 先",
+                    $"À environ {distanceMeters.Value:0} m")
+                : LanguageManager.Get(
+                    "Sẵn sàng mở chi tiết POI này.",
+                    "Ready to open this POI detail.",
+                    "可打开此 POI 详情。",
+                    "이 POI 상세 정보를 열 수 있습니다.",
+                    "このPOI詳細を開けます。",
+                    "Prêt à ouvrir ce POI.");
+
+            nearestStatusBadgeLabel.Text = LanguageManager.Get(
+                "GẦN NHẤT",
+                "NEAREST",
+                "最近",
+                "가장 가까움",
+                "最寄り",
+                "LE PLUS PROCHE");
+
+            viewNearestPoiButton.IsEnabled = true;
+        }
+
+        // Công dụng: render dữ liệu POI và geofence lên bản đồ WebView.
         private async Task RenderMapDataAsync()
         {
             var mapPois = geoPois
@@ -989,13 +1027,14 @@ namespace FoodGuideApp
             await EvaluateMapScriptAsync($"renderPois({JsonSerializer.Serialize(poiJson)});");
             await EvaluateMapScriptAsync($"renderGeofences({JsonSerializer.Serialize(poiJson)});");
 
-            var firstPoi = mapPois.FirstOrDefault();
-            if (firstPoi != null)
+            var focusPoi = mapPois.FirstOrDefault(p => p.isNearest) ?? mapPois.FirstOrDefault();
+            if (focusPoi != null)
             {
-                await MoveMapToLocation(firstPoi.lat, firstPoi.lng);
+                await MoveMapToLocation(focusPoi.lat, focusPoi.lng);
             }
         }
 
+        // Công dụng: chạy JavaScript an toàn trên WebView bản đồ khi map đã sẵn sàng.
         private async Task EvaluateMapScriptAsync(string script)
         {
             if (!isMapReady)
@@ -1010,71 +1049,6 @@ namespace FoodGuideApp
                 Debug.WriteLine($"[MAP JS ERROR] {ex.Message}");
             }
         }
-
-        // Công dụng: đọc nội dung thuyết minh bằng Text To Speech theo đúng ngôn ngữ
-        //private async Task SpeakText(string text, string languageCode)
-        //{
-        //    if (string.IsNullOrWhiteSpace(text) || isSpeaking)
-        //        return;
-
-        //    try
-        //    {
-        //        isSpeaking = true;
-
-        //        var locales = await TextToSpeech.Default.GetLocalesAsync();
-
-        //        if (locales == null || !locales.Any())
-        //        {
-        //            resultLabel.Text = "Thiết bị chưa có bộ máy TTS";
-        //            Debug.WriteLine("[TTS ERROR] Không tìm thấy locale TTS nào");
-        //            return;
-        //        }
-
-        //        string lang = (languageCode ?? "vi").Trim().ToLower();
-        //        Locale? locale = null;
-
-        //        locale = locales.FirstOrDefault(l =>
-        //            !string.IsNullOrWhiteSpace(l.Language) &&
-        //            l.Language.StartsWith(lang, StringComparison.OrdinalIgnoreCase));
-
-        //        if (locale == null && lang.Contains("-"))
-        //        {
-        //            string shortLang = lang.Split('-')[0];
-        //            locale = locales.FirstOrDefault(l =>
-        //                !string.IsNullOrWhiteSpace(l.Language) &&
-        //                l.Language.StartsWith(shortLang, StringComparison.OrdinalIgnoreCase));
-        //        }
-
-        //        if (locale == null)
-        //        {
-        //            locale = locales.FirstOrDefault(l =>
-        //                !string.IsNullOrWhiteSpace(l.Language) &&
-        //                l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase));
-        //        }
-
-        //        var options = new SpeechOptions
-        //        {
-        //            Locale = locale,
-        //            Pitch = 1.0f,
-        //            Volume = 1.0f
-        //        };
-
-        //        Debug.WriteLine($"[TTS] Lang={languageCode} | Locale={locale?.Language ?? "default"} | Text={text}");
-
-        //        await TextToSpeech.Default.SpeakAsync(text, options);
-
-        //        Debug.WriteLine("[TTS OK] Đọc xong");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Debug.WriteLine($"[TTS ERROR] {ex}");
-        //        resultLabel.Text = "Thiết bị/emulator chưa hỗ trợ Text-to-Speech";
-        //    }
-        //    finally
-        //    {
-        //        isSpeaking = false;
-        //    }
-        //}
 
         // Công dụng: lấy nội dung thuyết minh theo ngôn ngữ đang chọn, có fallback về tiếng Việt
         private string GetPoiTextByLanguage(Poi poi, string currentLanguage)
@@ -1123,6 +1097,7 @@ namespace FoodGuideApp
         }
 
         // Công dụng: trả về message hiển thị tương ứng với ngôn ngữ hiện tại
+        // Công dụng: tạo thông báo ngôn ngữ hiện tại để hiển thị trên UI.
         private string GetLanguageMessage()
         {
             return currentLanguage switch
@@ -1136,6 +1111,7 @@ namespace FoodGuideApp
         }
 
         // Công dụng: đổi ngôn ngữ hiện tại và lưu lại vào Preferences
+        // Công dụng: lưu ngôn ngữ được chọn và cập nhật lại giao diện.
         private void SetLanguage(string lang)
         {
             currentLanguage = lang;
@@ -1160,20 +1136,21 @@ namespace FoodGuideApp
             }
         }
         // Công dụng: kiểm tra latitude/longitude có nằm trong khoảng hợp lệ không
+        // Công dụng: kiểm tra tọa độ có nằm trong giới hạn hợp lệ hay không.
         private bool IsValidCoordinate(double latitude, double longitude)
         {
             return latitude >= -90 && latitude <= 90 &&
                    longitude >= -180 && longitude <= 180;
         }
         // dừng audio đang phát
+        // Công dụng: dừng audio queue khi rời khỏi trang map.
         protected override void OnDisappearing()
         {
             base.OnDisappearing();
 
             audioManager.StopCurrent(); 
         }
-        // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
-        // Hiển thị thông tin POI (tên, mô tả, ảnh) lên giao diện theo ngôn ngữ hiện tại
+        // Công dụng: hiển thị thông tin POI theo ngôn ngữ hiện tại.
         private void ShowPoiDetails(Poi poi)
         {
             if (poi == null)
@@ -1190,7 +1167,7 @@ namespace FoodGuideApp
                     $"Affichage des détails du POI : {poi.Name}");
             });
         }
-        // Xóa thông tin POI đang hiển thị trên giao diện (tên, mô tả, ảnh) khi không còn trong vùng geofence
+        // Công dụng: xóa thông tin POI đang hiển thị khi không còn trong vùng geofence.
         private void ClearPoiDetails()
         {
             MainThread.BeginInvokeOnMainThread(() =>
@@ -1201,7 +1178,7 @@ namespace FoodGuideApp
                 //poiImage.IsVisible = false;
             });
         }
-        //chi tiết poi gần nhất
+        // Công dụng: mở trang chi tiết cho POI gần nhất đang được xác định.
         private async void OnViewNearestPoiClicked(object sender, EventArgs e)
         {
             if (nearestPoiCurrent == null)
@@ -1235,7 +1212,7 @@ namespace FoodGuideApp
             isManualViewingPoi = true;
             await Navigation.PushAsync(new PoiInfoPage());
         }
-        //lưu POI hiện tại để tab POI đọc và hiển thị
+        // Công dụng: lưu POI hiện tại vào Preferences để trang chi tiết đọc và hiển thị.
         private void SavePoiInfoToPreferences(Poi poi, double distanceMeters = 0)
         {
             if (poi == null) return;
@@ -1267,6 +1244,7 @@ namespace FoodGuideApp
             Preferences.Set("poi_distance", distanceMeters.ToString("F1"));
         }
         //quet qr
+        // Công dụng: mở màn hình quét QR sau khi kiểm tra quyền camera.
         private async void OnScanQrClicked(object sender, EventArgs e)
         {
             try
@@ -1304,6 +1282,7 @@ namespace FoodGuideApp
                     "OK");
             }
         }
+        // Công dụng: highlight POI được chọn từ tab danh sách và đưa bản đồ tới đúng vị trí.
         private void HighlightPoiById(int poiId)
         {
             var poi = geoPois.FirstOrDefault(p => p.Id == poiId);
@@ -1315,11 +1294,13 @@ namespace FoodGuideApp
             // 🔥 Gán lại POI đang chọn thành nearest
             nearestPoiId = poi.Id;
             nearestPoiCurrent = poi;
+            UpdateNearestPoiSummary(poi, null);
 
             // 🔥 Gọi lại hàm highlight sẵn có
             _ = HighlightNearestPoi();
             _ = MoveMapToLocation(poi.Latitude, poi.Longitude);
         }
+        // Công dụng: áp dụng ngôn ngữ đang chọn cho các thành phần UI chính của trang map.
         private void ApplyLanguageToUI()
         {
             Title = LanguageManager.Get("Trang chủ", "Home", "主页", "홈", "ホーム", "Accueil");
@@ -1404,6 +1385,8 @@ namespace FoodGuideApp
                     "ジオフェンス外です",
                     "Hors de la zone geofence");
             }
+
+            UpdateNearestPoiSummary(nearestPoiCurrent, null);
         }
         // Công dụng: so sánh ứng viên POI theo Priority, khoảng cách, rồi ưu tiên POI đang ổn định để tránh nhảy liên tục.
         private bool IsBetterPoiCandidate(Poi candidate, double candidateDistance, Poi? currentBest, double currentBestDistance)

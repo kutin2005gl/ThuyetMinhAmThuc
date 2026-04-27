@@ -1,4 +1,4 @@
-﻿using FoodGuideApp.Services;
+using FoodGuideApp.Services;
 using Microsoft.Maui.Storage;
 
 namespace FoodGuideApp;
@@ -8,25 +8,29 @@ public partial class PoiInfoPage : ContentPage
     private CancellationTokenSource? speechCts;
     private bool isSpeaking = false;
 
+    // Công dụng: khởi tạo giao diện chi tiết POI đang được lưu trong Preferences.
     public PoiInfoPage()
     {
         InitializeComponent();
     }
 
-    protected override async void OnAppearing()
+    // Công dụng: nạp lại thông tin POI và chuẩn bị audio, không tự phát khi mở trang.
+    protected override void OnAppearing()
     {
         base.OnAppearing();
         ApplyLanguageToButtons();
         LoadPoiInfo();
-        await SpeakCurrentPoiAsync();
+        SetAudioReadyState();
     }
 
+    // Công dụng: dừng audio khi rời khỏi trang chi tiết POI.
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
         StopSpeaking();
     }
 
+    // Công dụng: đổi nhãn nút phát lại/dừng theo ngôn ngữ đang chọn.
     private void ApplyLanguageToButtons()
     {
         replayButton.Text = LanguageManager.Get(
@@ -48,15 +52,38 @@ public partial class PoiInfoPage : ContentPage
         );
     }
 
+    // Công dụng: giữ audio ở trạng thái sẵn sàng, chỉ phát khi người dùng bấm nghe lại.
+    private void SetAudioReadyState()
+    {
+        audioStatusLabel.Text = LanguageManager.Get(
+            "Sẵn sàng phát audio",
+            "Ready to play",
+            "可以播放音频",
+            "오디오 재생 준비 완료",
+            "音声の再生準備完了",
+            "Prêt à lire"
+        );
+    }
+
+    // Công dụng: đọc tên, mô tả, ảnh, khoảng cách và ngôn ngữ của POI từ Preferences để hiển thị.
     private void LoadPoiInfo()
     {
         string name = Preferences.Get("poi_name", "Chưa có POI");
         string description = Preferences.Get("poi_description", "Mô tả POI sẽ hiển thị ở đây");
         string imageUrl = Preferences.Get("poi_image_url", "");
         string distance = Preferences.Get("poi_distance", "--");
+        string language = Preferences.Get("app_language", "vi");
 
         poiNameLabel.Text = name;
         poiDescriptionLabel.Text = description;
+        poiLanguageLabel.Text = LanguageManager.Get(
+            $"Ngôn ngữ: {GetLanguageDisplayName(language)}",
+            $"Language: {GetLanguageDisplayName(language)}",
+            $"语言：{GetLanguageDisplayName(language)}",
+            $"언어: {GetLanguageDisplayName(language)}",
+            $"言語: {GetLanguageDisplayName(language)}",
+            $"Langue : {GetLanguageDisplayName(language)}"
+        );
 
         if (string.IsNullOrWhiteSpace(distance) ||
             distance == "--" ||
@@ -87,12 +114,13 @@ public partial class PoiInfoPage : ContentPage
 
         if (!string.IsNullOrWhiteSpace(imageUrl))
         {
-            try
+            var imageSource = CreateCachedImageSource(imageUrl);
+            if (imageSource != null)
             {
-                poiImage.Source = ImageSource.FromUri(new Uri(imageUrl));
+                poiImage.Source = imageSource;
                 poiImage.IsVisible = true;
             }
-            catch
+            else
             {
                 poiImage.Source = null;
                 poiImage.IsVisible = false;
@@ -105,6 +133,24 @@ public partial class PoiInfoPage : ContentPage
         }
     }
 
+    // Công dụng: dùng cache ảnh remote để tránh tải lại ảnh lớn khi mở lại chi tiết POI.
+    private static ImageSource? CreateCachedImageSource(string? imageUrl)
+    {
+        if (!Uri.TryCreate(imageUrl, UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        {
+            return null;
+        }
+
+        return new UriImageSource
+        {
+            Uri = uri,
+            CachingEnabled = true,
+            CacheValidity = TimeSpan.FromDays(7)
+        };
+    }
+
+    // Công dụng: phát nội dung thuyết minh hiện tại bằng Text To Speech theo ngôn ngữ đã chọn.
     private async Task SpeakCurrentPoiAsync()
     {
         string text = Preferences.Get("poi_description", "");
@@ -212,6 +258,7 @@ public partial class PoiInfoPage : ContentPage
         }
     }
 
+    // Công dụng: hủy yêu cầu phát âm thanh hiện tại nếu còn đang chạy.
     private void StopSpeaking()
     {
         if (speechCts != null && !speechCts.IsCancellationRequested)
@@ -222,12 +269,14 @@ public partial class PoiInfoPage : ContentPage
         isSpeaking = false;
     }
 
+    // Công dụng: xử lý nút nghe lại nội dung thuyết minh POI.
     private async void OnReplayClicked(object sender, EventArgs e)
     {
         StopSpeaking();
         await SpeakCurrentPoiAsync();
     }
 
+    // Công dụng: xử lý nút dừng phát thuyết minh POI.
     private void OnStopClicked(object sender, EventArgs e)
     {
         StopSpeaking();
@@ -239,5 +288,19 @@ public partial class PoiInfoPage : ContentPage
             "音声停止",
             "Audio arrêté"
         );
+    }
+
+    // Công dụng: chuyển mã ngôn ngữ thành tên dễ đọc để hiển thị trên trang detail.
+    private string GetLanguageDisplayName(string language)
+    {
+        return (language ?? "vi").Trim().ToLowerInvariant() switch
+        {
+            "en" => "English",
+            "zh" => "中文",
+            "ko" => "한국어",
+            "ja" => "日本語",
+            "fr" => "Français",
+            _ => "Tiếng Việt"
+        };
     }
 }
