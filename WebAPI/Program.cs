@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Data;
 using WebAPI.Services;
+<<<<<<< Updated upstream
 using WebAPI.Services.Interfaces;
+=======
+using Microsoft.Extensions.FileProviders;
+>>>>>>> Stashed changes
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,9 +40,23 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+var audioPath = Path.Combine(builder.Environment.ContentRootPath, "audio");
+if (!Directory.Exists(audioPath))
+{
+    Directory.CreateDirectory(audioPath);
+}
+
+// 2. Cấu hình cho phép truy cập file .mp3 từ trình duyệt/mobile
+app.UseStaticFiles(); // Cho phép dùng wwwroot (mặc định)
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(audioPath),
+    RequestPath = "/audio" // Khi gọi http://.../audio/file.mp3 nó sẽ trỏ vào thư mục này
+});
+
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseStaticFiles();
 app.UseCors();
 app.UseAuthorization();
 app.MapControllers();

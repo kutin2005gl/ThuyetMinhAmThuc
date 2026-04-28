@@ -218,7 +218,8 @@
     private async Task OnPoiChanged(ChangeEventArgs e)
     {
         selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
-        form = new TranslationForm { Language = "vi" };
+        string defaultLang = availableLanguages.FirstOrDefault()?.Code ?? "";
+        form = new TranslationForm { Language = defaultLang };
         message = null;
         await LoadTranslations();
     }
@@ -242,14 +243,14 @@
             var http = HttpFactory.CreateClient("WebAPI");
             var response = await http.PostAsJsonAsync("/api/Translation", new {
                 PoiId = selectedPoiId,
-                form.Language,
-                form.Text
+                Language = form.Language,
+                Text = form.Text
             });
             
             if (response.IsSuccessStatusCode) {
                 var result = await response.Content.ReadFromJsonAsync<SaveResult>();
                 message = $"✅ {result?.Message}";
-                form = new TranslationForm { Language = "vi" };
+                form.Text = "";
                 await LoadTranslations();
             } else { message = "❌ Lỗi khi thực hiện dịch thuật."; }
         } 
@@ -268,10 +269,29 @@
     }
 
     // DTO Models
-    public class PoiDto { public int Id { get; set; } public string Name { get; set; } = ""; }
-    public class TranslationDto { public int Id { get; set; } public int PoiId { get; set; } public string Language { get; set; } = ""; public string Text { get; set; } = ""; }
-    public class TranslationForm { public string Language { get; set; } = "vi"; public string Text { get; set; } = ""; }
-    public class SaveResult { public string? Message { get; set; } }
+    public class PoiDto {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+    }
+
+    public class TranslationDto { 
+        public int Id { get; set; } 
+        public int PoiId { get; set; } 
+        public string Language { get; set; } = ""; 
+        public string Text { get; set; } = ""; 
+        public string? VoiceName { get; set; }
+    }
+    
+    public class TranslationForm { 
+        public string Language { get; set; } = ""; 
+        public string Text { get; set; } = ""; 
+    
+    }
+
+    public class SaveResult { 
+        public string? Message { get; set; } 
+    }
+
     public class SupportedLanguageDto {
         public int Id { get; set; }
         public string Code { get; set; } = "";

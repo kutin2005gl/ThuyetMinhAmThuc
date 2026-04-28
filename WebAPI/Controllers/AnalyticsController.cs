@@ -16,7 +16,6 @@ public class AnalyticsController : ControllerBase
         _db = db;
     }
 
-    // App gửi event lên
     [HttpPost("event")]
     public async Task<IActionResult> TrackEvent([FromBody] AnalyticsEventDto dto)
     {
@@ -34,11 +33,15 @@ public class AnalyticsController : ControllerBase
         return Ok();
     }
 
-    // Số du khách đang online (session trong 5 phút gần nhất)
+    // Giữ nguyên hoặc điều chỉnh thời gian active tùy nhu cầu
     [HttpGet("active-users")]
     public async Task<IActionResult> GetActiveUsers()
     {
+<<<<<<< Updated upstream
         var since = DateTime.UtcNow.AddMinutes(-5);
+=======
+        var since = DateTime.UtcNow.AddMinutes(-5); // Thường tính 5 phút gần nhất
+>>>>>>> Stashed changes
         var count = await _db.AnalyticsEvents
             .Where(e => e.CreatedAt >= since)
             .Select(e => e.SessionId)
@@ -47,7 +50,7 @@ public class AnalyticsController : ControllerBase
         return Ok(new { activeUsers = count });
     }
 
-    // Top POI nghe nhiều nhất
+    // Sửa lại để lấy tên POI chính xác cho trang Analytics
     [HttpGet("top-pois")]
     public async Task<IActionResult> GetTopPois()
     {
@@ -57,69 +60,66 @@ public class AnalyticsController : ControllerBase
             .Select(g => new
             {
                 PoiId = g.Key,
-                Count = g.Count(),
-                PoiName = _db.Pois
-                    .Where(p => p.Id == g.Key)
-                    .Select(p => p.Name)
-                    .FirstOrDefault()
+                Count = g.Count()
             })
             .OrderByDescending(x => x.Count)
             .Take(5)
             .ToListAsync();
-        return Ok(top);
+
+        // Lấy danh sách ID để map tên một lần duy nhất (tối ưu performance)
+        var poiIds = top.Select(x => x.PoiId).ToList();
+        var poiNames = await _db.Pois
+            .Where(p => poiIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name);
+
+        var result = top.Select(x => new
+        {
+            PoiName = poiNames.ContainsKey(x.PoiId!.Value) ? poiNames[x.PoiId.Value] : "Nơi chốn bí ẩn",
+            Count = x.Count
+        });
+
+        return Ok(result);
     }
 
-    // Thời gian trung bình nghe 1 POI
+    // Thời gian trung bình nghe (Chỉ tính những lượt nghe thực tế > 0 giây)
     [HttpGet("avg-duration")]
     public async Task<IActionResult> GetAvgDuration()
     {
-        var avg = await _db.AnalyticsEvents
-            .Where(e => e.EventType == "listen" && e.DurationSeconds != null)
+        var avgData = await _db.AnalyticsEvents
+            .Where(e => e.EventType == "listen" && e.PoiId != null && e.DurationSeconds > 0)
             .GroupBy(e => e.PoiId)
             .Select(g => new
             {
                 PoiId = g.Key,
-                PoiName = _db.Pois
-                    .Where(p => p.Id == g.Key)
-                    .Select(p => p.Name)
-                    .FirstOrDefault(),
-                AvgSeconds = (int)g.Average(e => e.DurationSeconds!.Value)
+                AvgSeconds = (int)g.Average(e => e.DurationSeconds ?? 0)
             })
             .ToListAsync();
-        return Ok(avg);
+
+        var poiIds = avgData.Select(x => x.PoiId).ToList();
+        var poiNames = await _db.Pois
+            .Where(p => poiIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, p => p.Name);
+
+        var result = avgData.Select(x => new
+        {
+            PoiName = poiNames.ContainsKey(x.PoiId!.Value) ? poiNames[x.PoiId.Value] : "Không xác định",
+            AvgSeconds = x.AvgSeconds
+        });
+
+        return Ok(result);
     }
 
-    // Heatmap — tọa độ người dùng
     [HttpGet("heatmap")]
     public async Task<IActionResult> GetHeatmap()
     {
+        // Chỉ lấy những điểm có tọa độ hợp lệ
         var points = await _db.AnalyticsEvents
-            .Where(e => e.Latitude != null && e.Longitude != null)
+            .Where(e => e.Latitude != null && e.Longitude != null && e.Latitude != 0)
             .Select(e => new { e.Latitude, e.Longitude })
             .ToListAsync();
         return Ok(points);
     }
 
-    // Tuyến di chuyển theo session
-    [HttpGet("routes")]
-    public async Task<IActionResult> GetRoutes()
-    {
-        var routes = await _db.AnalyticsEvents
-            .Where(e => e.Latitude != null && e.Longitude != null)
-            .OrderBy(e => e.SessionId)
-            .ThenBy(e => e.CreatedAt)
-            .GroupBy(e => e.SessionId)
-            .Select(g => new
-            {
-                SessionId = g.Key,
-                Points = g.Select(e => new { e.Latitude, e.Longitude, e.CreatedAt })
-            })
-            .Take(20)
-            .ToListAsync();
-        return Ok(routes);
-    }
-
-    // Tổng thống kê
     [HttpGet("summary")]
     public async Task<IActionResult> GetSummary()
     {

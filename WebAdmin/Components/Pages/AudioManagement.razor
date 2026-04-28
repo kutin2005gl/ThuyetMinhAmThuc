@@ -3,14 +3,28 @@
 @inject IHttpClientFactory HttpFactory
 @inject UserSession Session
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="container-fluid px-4 mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
         <div>
+<<<<<<< Updated upstream
             <h3 class="fw-bold text-primary mb-0"><i class="bi bi-mic-fill me-2"></i>Quản lý Audio Thuyết minh</h3>
             <small class="text-muted">Chuyển đổi văn bản thành giọng nói (TTS) đa ngôn ngữ</small>
+=======
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-mic-fill me-2"></i>Quản lý nội dung thuyết minh</h3>
+            <small class="text-muted">Nghe thử bản dịch và cập nhật để App Mobile sử dụng Text-to-Speech</small>
+>>>>>>> Stashed changes
         </div>
     </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert @(isError ? "alert-danger" : "alert-success") border-0 shadow-sm alert-dismissible fade show animate__animated animate__fadeIn">
+            <i class="bi @(isError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-2"></i> @message
+            <button type="button" class="btn-close" @onclick='() => message = ""'></button>
+        </div>
+    }
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-4">
@@ -20,7 +34,11 @@
                 </div>
                 <div class="col-md-6">
                     <select class="form-select border-primary-subtle shadow-sm" @onchange="OnPoiChanged">
+<<<<<<< Updated upstream
                         <option value="0">-- Chọn điểm tham quan để quản lý âm thanh --</option>
+=======
+                        <option value="0">-- Chọn địa điểm để quản lý --</option>
+>>>>>>> Stashed changes
                         @if (pois != null)
                         {
                             @foreach (var poi in pois)
@@ -36,6 +54,7 @@
 
     @if (selectedPoiId > 0)
     {
+<<<<<<< Updated upstream
         @if (!Session.IsAdmin && Session.PoiId != selectedPoiId)
         {
             <div class="alert alert-warning border-0 shadow-sm animate__animated animate__shakeX">
@@ -61,18 +80,69 @@
                                 <th>Nội dung văn bản</th>
                                 <th>Trạng thái & Nghe thử</th>
                                 <th class="text-center pe-4">Hành động</th>
+=======
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden animate__animated animate__fadeInUp">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-primary text-white text-uppercase small">
+                        <tr>
+                            <th class="ps-4 py-3">Ngôn ngữ</th>
+                            <th>Nội dung văn bản</th>
+                            <th class="text-center">Nghe thử (Web)</th>
+                            <th class="text-center pe-4">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white">
+                        @if (translations == null)
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status"></div>
+                                </td>
+>>>>>>> Stashed changes
                             </tr>
-                        </thead>
-                        <tbody class="bg-white">
-                            @if (translations == null)
+                        }
+                        else
+                        {
+                            @foreach (var t in translations)
                             {
                                 <tr>
-                                    <td colspan="4" class="text-center py-5">
-                                        <div class="spinner-border text-primary" role="status"></div>
-                                        <div class="mt-2 text-muted">Đang tải bản dịch...</div>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fs-5">@GetFlag(t.Language)</span>
+                                            <span class="fw-bold text-dark">@t.Language.ToUpper()</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-muted small text-truncate" style="max-width: 400px;" title="@t.Text">
+                                            @t.Text
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-secondary rounded-circle shadow-sm" 
+                                                @onclick="() => PlayPreview(t.Text, t.Language)"
+                                                title="Nghe thử giọng máy trình duyệt">
+                                            <i class="bi bi-volume-up-fill"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <button class="btn @(updatedLanguages.Contains(t.Language) ? "btn-success" : "btn-outline-primary") btn-sm px-4 rounded-pill shadow-sm"
+                                                @onclick="() => UpdateDeviceTts(t)"
+                                                disabled="@isGenerating">
+                                            @if (generatingLang == t.Language)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i>
+                                            }
+                                            @(updatedLanguages.Contains(t.Language) ? "Đã cập nhật" : "Cập nhật App")
+                                        </button>
                                     </td>
                                 </tr>
                             }
+<<<<<<< Updated upstream
                             else if (!translations.Any())
                             {
                                 <tr>
@@ -147,6 +217,12 @@
             <i class="bi bi-soundwave display-1 text-light"></i>
             <h4 class="text-muted mt-3">Vui lòng chọn POI để tiếp tục</h4>
             <p class="text-secondary small">Hệ thống sẽ liệt kê các bản dịch sẵn có để tạo giọng nói.</p>
+=======
+                        }
+                    </tbody>
+                </table>
+            </div>
+>>>>>>> Stashed changes
         </div>
     }
 </div>
@@ -154,16 +230,23 @@
 <style>
     .tts-player { height: 32px; width: 180px; filter: sepia(20%) saturate(70%) grayscale(1); }
     .table thead th { font-weight: 700; letter-spacing: 0.5px; border: none; }
-    .table tbody tr { transition: background 0.2s; }
     .table tbody tr:hover { background-color: #f8faff; }
+<<<<<<< Updated upstream
     .badge { font-weight: 500; font-size: 0.75rem; }
     .animate__animated { animation-duration: 0.6s; }
+=======
+    .animate__animated { animation-duration: 0.5s; }
+>>>>>>> Stashed changes
 </style>
 
 @code {
     private List<PoiDto>? pois;
     private List<TranslationDto>? translations;
+<<<<<<< Updated upstream
     private Dictionary<string, string> generatedUrls = new();
+=======
+    private HashSet<string> updatedLanguages = new();
+>>>>>>> Stashed changes
     private int selectedPoiId = 0;
     private string? message;
     private bool isGenerating = false;
@@ -172,10 +255,19 @@
     protected override async Task OnInitializedAsync()
     {
         if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
+<<<<<<< Updated upstream
+=======
+        await LoadPois();
+    }
+
+    private async Task LoadPois()
+    {
+>>>>>>> Stashed changes
         try {
             var http = HttpFactory.CreateClient("WebAPI");
             var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
             pois = Session.IsAdmin ? allPois : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+<<<<<<< Updated upstream
         } catch (Exception ex) { message = $"❌ Lỗi kết nối API: {ex.Message}"; }
     }
 
@@ -193,6 +285,17 @@
         if (selectedPoiId > 0) {
             await LoadTranslations();
         }
+=======
+        } catch { isError = true; message = "Không thể kết nối API."; }
+    }
+
+    private async Task OnPoiChanged(ChangeEventArgs e)
+    {
+        selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
+        updatedLanguages.Clear();
+        message = null;
+        if (selectedPoiId > 0) await LoadTranslations();
+>>>>>>> Stashed changes
     }
 
     private async Task LoadTranslations()
@@ -200,6 +303,7 @@
         try {
             var http = HttpFactory.CreateClient("WebAPI");
             translations = await http.GetFromJsonAsync<List<TranslationDto>>($"/api/Translation/{selectedPoiId}");
+<<<<<<< Updated upstream
         } catch (Exception ex) { message = $"❌ Lỗi tải dữ liệu: {ex.Message}"; }
     }
 
@@ -246,4 +350,40 @@
     }
 
     public class TtsResult { public string? AudioUrl { get; set; } }
+=======
+        } catch { isError = true; message = "Lỗi tải bản dịch."; }
+    }
+
+    // --- HÀM NGHE THỬ ---
+    private async Task PlayPreview(string text, string lang)
+    {
+        string browserLang = lang.ToLower() switch {
+            "vi" => "vi-VN", "en" => "en-US", "fr" => "fr-FR", "ja" => "ja-JP", "ko" => "ko-KR", "zh" => "zh-CN", _ => lang.Length == 2 ? $"{lang.ToLower()}-{lang.ToUpper()}" : lang
+        };
+        await JS.InvokeVoidAsync("speakText", text, browserLang);
+    }
+
+    // --- HÀM CẬP NHẬT DATABASE ---
+    private async Task UpdateDeviceTts(TranslationDto t)
+    {
+        isGenerating = true; generatingLang = t.Language;
+        try {
+            var http = HttpFactory.CreateClient("WebAPI");
+            var response = await http.PostAsJsonAsync("/api/Tts/generate", new { PoiId = selectedPoiId, Text = t.Text, Language = t.Language });
+            if (response.IsSuccessStatusCode) {
+                updatedLanguages.Add(t.Language);
+                message = "✅ Đã đồng bộ nội dung. App Mobile sẽ đọc bản mới nhất!";
+                isError = false;
+            }
+        } catch { isError = true; message = "Lỗi kết nối server."; }
+        finally { isGenerating = false; generatingLang = null; }
+    }
+
+    private string GetFlag(string code) => code.ToLower() switch {
+        "vi" => "🇻🇳", "en" => "🇺🇸", "zh" => "🇨🇳", "ja" => "🇯🇵", "ko" => "🇰🇷", "fr" => "🇫🇷", _ => "🌐"
+    };
+
+    public class PoiDto { public int Id { get; set; } public string Name { get; set; } = ""; }
+    public class TranslationDto { public int Id { get; set; } public string Language { get; set; } = ""; public string Text { get; set; } = ""; }
+>>>>>>> Stashed changes
 }

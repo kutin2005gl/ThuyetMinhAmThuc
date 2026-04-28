@@ -16,6 +16,27 @@
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 
     <ReconnectModal />
+<<<<<<< Updated upstream
+=======
+
+    <!-- 🔥 JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/analytics.js"></script>
+    <script>
+        window.speakText = (text, lang) => {
+            // Hủy các câu đang đọc dở để tránh chồng chéo
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang; 
+            
+            // Có thể chỉnh thêm tốc độ nếu muốn (1 là bình thường)
+            utterance.rate = 1.0; 
+            
+            window.speechSynthesis.speak(utterance);
+        };
+    </script>
+>>>>>>> Stashed changes
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

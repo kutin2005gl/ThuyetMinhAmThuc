@@ -22,6 +22,8 @@ public class TranslationController : ControllerBase
     [HttpGet("{poiId}")]
     public async Task<IActionResult> GetByPoi(int poiId)
     {
+        var supportedLangs = await _db.SupportedLanguages.ToListAsync();
+
         var translations = await _db.Translations
             .Where(t => t.PoiId == poiId)
             .ToListAsync();
@@ -32,6 +34,7 @@ public class TranslationController : ControllerBase
             t.PoiId,
             t.Language,
             t.Text,
+            VoiceName = supportedLangs.FirstOrDefault(l => l.Code == t.Language)?.VoiceName,
             HasAudio = System.IO.File.Exists(Path.Combine("wwwroot/audio", $"tts_{poiId}_{t.Language}.mp3"))
         });
 
