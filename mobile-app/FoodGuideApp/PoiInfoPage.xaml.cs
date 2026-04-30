@@ -8,6 +8,8 @@ public partial class PoiInfoPage : ContentPage
     private CancellationTokenSource? speechCts;
     private bool isSpeaking = false;
 
+    private readonly PoiService _poiService = new();
+
     // Công dụng: khởi tạo giao diện chi tiết POI đang được lưu trong Preferences.
     public PoiInfoPage()
     {
@@ -159,98 +161,59 @@ public partial class PoiInfoPage : ContentPage
         if (string.IsNullOrWhiteSpace(text))
         {
             audioStatusLabel.Text = LanguageManager.Get(
-                "Không có nội dung để phát",
-                "No content to play",
-                "没有可播放内容",
-                "재생할 내용이 없습니다",
-                "再生する内容がありません",
-                "Aucun contenu à lire"
-            );
+                "Không có nội dung để phát", "No content to play", "没有可播放内容",
+                "재생할 내용이 없습니다", "再生する内容がありません", "Aucun contenu à lire");
             return;
         }
 
-        if (isSpeaking)
-            return;
+        if (isSpeaking) return;
 
         try
         {
             isSpeaking = true;
+
+            // 1. GỬI LOG VỀ SERVER TRƯỚC (Để Dashboard đếm số)
+            try
+            {
+                int poiId = Preferences.Get("highlight_poi_id", 0);
+                string sessionId = Preferences.Get("guest_session_id", "guest_user");
+
+                // Chú ý: Ông cần đảm bảo đã inject _poiService vào hoặc dùng HttpClient ở đây
+                var analyticsData = new { SessionId = sessionId, EventType = "listen", PoiId = poiId };
+                await _poiService.SendAnalyticsAsync(analyticsData); // Mở comment này khi đã có Service
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi gửi log: " + ex.Message); }
+
+            // 2. KHỞI TẠO TTS
             speechCts?.Cancel();
             speechCts = new CancellationTokenSource();
 
             audioStatusLabel.Text = LanguageManager.Get(
-                "Đang phát audio...",
-                "Playing audio...",
-                "正在播放音频...",
-                "오디오 재생 중...",
-                "音声を再生中...",
-                "Lecture en cours..."
-            );
+                "Đang phát audio...", "Playing audio...", "正在播放音频...",
+                "오디오 재생 중...", "音声を再生中...", "Lecture en cours...");
 
+            // 3. XỬ LÝ NGÔN NGỮ
             var locales = await TextToSpeech.Default.GetLocalesAsync();
-            Locale? locale = null;
+            Locale? locale = locales?.FirstOrDefault(l =>
+                l.Language.StartsWith(language, StringComparison.OrdinalIgnoreCase))
+                ?? locales?.FirstOrDefault(l => l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase));
 
-            if (locales != null && locales.Any())
-            {
-                locale = locales.FirstOrDefault(l =>
-                    !string.IsNullOrWhiteSpace(l.Language) &&
-                    l.Language.StartsWith(language, StringComparison.OrdinalIgnoreCase));
+            var options = new SpeechOptions { Locale = locale, Pitch = 1.0f, Volume = 1.0f };
 
-                if (locale == null && language.Contains("-"))
-                {
-                    string shortLang = language.Split('-')[0];
-                    locale = locales.FirstOrDefault(l =>
-                        !string.IsNullOrWhiteSpace(l.Language) &&
-                        l.Language.StartsWith(shortLang, StringComparison.OrdinalIgnoreCase));
-                }
+            // 4. PHÁT ÂM THANH
+            await TextToSpeech.Default.SpeakAsync(text, options, speechCts.Token); 
 
-                if (locale == null)
-                {
-                    locale = locales.FirstOrDefault(l =>
-                        !string.IsNullOrWhiteSpace(l.Language) &&
-                        l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase));
-                }
-            }
-
-            var options = new SpeechOptions
-            {
-                Locale = locale,
-                Pitch = 1.0f,
-                Volume = 1.0f
-            };
-
-            await TextToSpeech.Default.SpeakAsync(text, options, speechCts.Token);
-
-            audioStatusLabel.Text = LanguageManager.Get(
-                "Đã phát xong",
-                "Finished playing",
-                "播放完成",
-                "재생 완료",
-                "再生完了",
-                "Lecture terminée"
-            );
+        audioStatusLabel.Text = LanguageManager.Get(
+            "Đã phát xong", "Finished playing", "播放完成",
+            "재생 완료", "再生完了", "Lecture terminée");
         }
         catch (OperationCanceledException)
         {
-            audioStatusLabel.Text = LanguageManager.Get(
-                "Đã dừng audio",
-                "Audio stopped",
-                "音频已停止",
-                "오디오 중지됨",
-                "音声停止",
-                "Audio arrêté"
-            );
+            audioStatusLabel.Text = LanguageManager.Get("Đã dừng audio", "Audio stopped", "音频已停止", "오디오 중지됨", "音声停止", "Audio arrêté");
         }
         catch (Exception ex)
         {
-            audioStatusLabel.Text = LanguageManager.Get(
-                "Lỗi audio",
-                "Audio error",
-                "音频错误",
-                "오디오 오류",
-                "音声エラー",
-                "Erreur audio"
-            ) + $": {ex.Message}";
+            audioStatusLabel.Text = LanguageManager.Get("Lỗi audio", "Audio error", "音频错误", "오디오 오류", "音声エラー", "Erreur audio") + $": {ex.Message}";
         }
         finally
         {

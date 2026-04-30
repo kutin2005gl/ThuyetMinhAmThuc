@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FoodGuideApp.Models;
 using Microsoft.Maui.Networking;
+using System.Net.Http.Json;
 
 namespace FoodGuideApp.Services;
 
@@ -81,5 +82,33 @@ public class PoiService
 
         Debug.WriteLine($"[POI CACHE] reason={reason} | count={cachedPois.Count}");
         return cachedPois;
+    }
+
+    // Công dụng: Gửi các sự kiện (như 'listen') về server để Dashboard đếm số lượt nghe.
+    public async Task SendAnalyticsAsync(object data)
+    {
+        try
+        {
+            // Gắn SessionId vào Header nếu cần (giống như cách ông làm ở GetPoisAsync)
+            GuestSessionService.AttachTo(_httpClient);
+
+        string url = $"{AppConfig.BaseUrl.TrimEnd('/')}/api/Analytics/event";
+        
+        // Gửi yêu cầu POST kèm dữ liệu dạng JSON
+        var response = await _httpClient.PostAsJsonAsync(url, data);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Debug.WriteLine("[ANALYTICS] Gửi log thành công!");
+            }
+            else
+            {
+                Debug.WriteLine($"[ANALYTICS] Lỗi từ Server: {(int)response.StatusCode}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[ANALYTICS ERROR] Không thể gửi log: {ex.Message}");
+        }
     }
 }

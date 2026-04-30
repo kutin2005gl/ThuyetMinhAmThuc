@@ -87,32 +87,29 @@ public class MonitoringController : ControllerBase
 
     private async Task<List<MonitoringEventRow>> LoadEventsAsync(DateTime? startUtc, DateTime endExclusiveUtc)
     {
-        var usageQuery = _db.AppUsageEvents.AsNoTracking().AsQueryable();
-        if (startUtc.HasValue)
-        {
-            usageQuery = usageQuery.Where(e => e.CreatedAtUtc >= startUtc.Value);
-        }
+        // Danh sách các event type chúng ta thực sự quan tâm để đếm
+        var targetEvents = new[] { "app_open", "open_app", "qr_scan", "scan_qr", "qr", "listen", "poi_listen", "audio_play", "tts_play", "play_audio" };
+
+        // 1. Lấy từ AppUsageEvents
+        var usageQuery = _db.AppUsageEvents.AsNoTracking()
+            .Where(e => targetEvents.Contains(e.EventType)); // Lọc ngay tại SQL
+
+        if (startUtc.HasValue) usageQuery = usageQuery.Where(e => e.CreatedAtUtc >= startUtc.Value);
 
         var usageEvents = await usageQuery
             .Where(e => e.CreatedAtUtc < endExclusiveUtc)
-            .Select(e => new MonitoringEventRow(
-                e.GuestSessionId,
-                e.EventType,
-                e.CreatedAtUtc))
+            .Select(e => new MonitoringEventRow(e.GuestSessionId, e.EventType, e.CreatedAtUtc))
             .ToListAsync();
 
-        var analyticsQuery = _db.AnalyticsEvents.AsNoTracking().AsQueryable();
-        if (startUtc.HasValue)
-        {
-            analyticsQuery = analyticsQuery.Where(e => e.CreatedAt >= startUtc.Value);
-        }
+        // 2. Lấy từ AnalyticsEvents
+        var analyticsQuery = _db.AnalyticsEvents.AsNoTracking()
+            .Where(e => targetEvents.Contains(e.EventType)); // Lọc ngay tại SQL
+
+        if (startUtc.HasValue) analyticsQuery = analyticsQuery.Where(e => e.CreatedAt >= startUtc.Value);
 
         var analyticsEvents = await analyticsQuery
             .Where(e => e.CreatedAt < endExclusiveUtc)
-            .Select(e => new MonitoringEventRow(
-                e.SessionId,
-                e.EventType,
-                e.CreatedAt))
+            .Select(e => new MonitoringEventRow(e.SessionId, e.EventType, e.CreatedAt))
             .ToListAsync();
 
         usageEvents.AddRange(analyticsEvents);
@@ -142,7 +139,12 @@ public class MonitoringController : ControllerBase
         => IsEvent(row, "listen", "poi_listen", "audio_play", "tts_play", "play_audio");
 
     private static bool IsEvent(MonitoringEventRow row, params string[] eventTypes)
-        => eventTypes.Contains(row.EventType.Trim(), StringComparer.OrdinalIgnoreCase);
+    {
+        if (string.IsNullOrEmpty(row.EventType)) return false;
+        // Trim và chuyển về chữ thường để so sánh chính xác tuyệt đối
+        var type = row.EventType.Trim().ToLowerInvariant();
+        return eventTypes.Any(t => t.Equals(type, StringComparison.OrdinalIgnoreCase));
+    }
 
     private sealed record MonitoringEventRow(string SessionId, string EventType, DateTime EventTimeUtc);
 }

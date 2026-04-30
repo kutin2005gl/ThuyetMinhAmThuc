@@ -3,346 +3,192 @@
 @inject IHttpClientFactory HttpFactory
 @inject UserSession Session
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
-<PageTitle>Quản lý Audio</PageTitle>
-
-<div class="cms-page">
-    <section class="cms-hero">
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-white shadow-sm rounded-3">
         <div>
-            <span class="eyebrow">Audio & TTS</span>
-            <h1>Quản lý nội dung audio</h1>
-            <p>Kiểm tra nội dung thuyết minh theo từng ngôn ngữ và cập nhật trạng thái để app mobile đọc bằng Text-to-Speech.</p>
+            <h3 class="fw-bold text-primary mb-0"><i class="bi bi-mic-fill me-2"></i>Quản lý nội dung thuyết minh</h3>
+            <small class="text-muted">Nghe thử bản dịch và cập nhật để App Mobile sử dụng Text-to-Speech</small>
         </div>
-        @if (selectedPoiId > 0 && translations?.Any() == true && CanManageSelectedPoi)
-        {
-            <button class="btn btn-primary btn-lg" @onclick="UpdateAllDeviceTts" disabled="@isGenerating">
-                <i class="bi bi-soundwave"></i>
-                Cập nhật tất cả
-            </button>
-        }
-    </section>
+    </div>
 
-    @if (!string.IsNullOrWhiteSpace(message))
+    @if (!string.IsNullOrEmpty(message))
     {
-        <div class="alert @(isError ? "alert-danger" : "alert-success") border-0 shadow-sm d-flex align-items-center justify-content-between">
-            <span><i class="bi @(isError ? "bi-exclamation-triangle" : "bi-check-circle")"></i>@message</span>
-            <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+        <div class="alert @(isError ? "alert-danger" : "alert-success") border-0 shadow-sm alert-dismissible fade show animate__animated animate__fadeIn">
+            <i class="bi @(isError ? "bi-exclamation-triangle-fill" : "bi-check-circle-fill") me-2"></i> @message
+            <button type="button" class="btn-close" @onclick='() => message = ""'></button>
         </div>
     }
 
-    <section class="cms-panel">
-        <div class="panel-heading toolbar-heading">
-            <div>
-                <h2>Chọn điểm tham quan</h2>
-                <p>Audio được quản lý theo nội dung bản dịch của từng POI.</p>
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="row align-items-center">
+                <div class="col-md-2">
+                    <label class="fw-bold text-secondary text-uppercase small">Chọn POI</label>
+                </div>
+                <div class="col-md-6">
+                    <select class="form-select border-primary-subtle shadow-sm" @onchange="OnPoiChanged">
+                        <option value="0">-- Chọn địa điểm để quản lý --</option>
+                        @if (pois != null)
+                        {
+                            @foreach (var poi in pois)
+                            {
+                                <option value="@poi.Id">@poi.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
             </div>
-            <select class="form-select poi-select" value="@selectedPoiId" @onchange="OnPoiChanged">
-                <option value="0">Chọn POI</option>
-                @if (pois != null)
-                {
-                    @foreach (var poi in pois)
-                    {
-                        <option value="@poi.Id">@poi.Name</option>
-                    }
-                }
-            </select>
         </div>
-    </section>
+    </div>
 
-    <section class="metric-grid compact">
-        <div class="metric-card accent-blue">
-            <i class="bi bi-translate"></i>
-            <span>Bản dịch</span>
-            <strong>@(translations?.Count ?? 0)</strong>
-        </div>
-        <div class="metric-card accent-green">
-            <i class="bi bi-check-circle"></i>
-            <span>Đã cập nhật</span>
-            <strong>@ReadyCount</strong>
-        </div>
-        <div class="metric-card accent-orange">
-            <i class="bi bi-phone"></i>
-            <span>Dùng TTS thiết bị</span>
-            <strong>@DeviceTtsCount</strong>
-        </div>
-    </section>
-
-    <section class="cms-panel">
-        <div class="panel-heading">
-            <div>
-                <h2>Trạng thái audio</h2>
-                <p>@SelectedPoiName</p>
-            </div>
-        </div>
-
-        @if (selectedPoiId == 0)
-        {
-            <div class="empty-state">
-                <i class="bi bi-mic"></i>
-                <h3>Chưa chọn POI</h3>
-                <p>Chọn một điểm tham quan để xem các nội dung có thể đọc audio.</p>
-            </div>
-        }
-        else if (!CanManageSelectedPoi)
-        {
-            <div class="permission-note">
-                <i class="bi bi-lock"></i>
-                Tài khoản này không có quyền quản lý audio của POI đã chọn.
-            </div>
-        }
-        else if (translations == null)
-        {
-            <div class="empty-state">
-                <div class="spinner-border text-primary" role="status"></div>
-                <p>Đang tải bản dịch...</p>
-            </div>
-        }
-        else if (!translations.Any())
-        {
-            <div class="empty-state">
-                <i class="bi bi-chat-square-text"></i>
-                <h3>Chưa có nội dung</h3>
-                <p>Hãy tạo bản dịch trước, sau đó quay lại đây để cập nhật audio/TTS.</p>
-            </div>
-        }
-        else
-        {
+    @if (selectedPoiId > 0)
+    {
+        <div class="card border-0 shadow-sm rounded-3 overflow-hidden animate__animated animate__fadeInUp">
             <div class="table-responsive">
-                <table class="table cms-table align-middle">
-                    <thead>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-primary text-white text-uppercase small">
                         <tr>
-                            <th>Ngôn ngữ</th>
-                            <th>Nội dung</th>
-                            <th>Trạng thái</th>
-                            <th class="text-end">Thao tác</th>
+                            <th class="ps-4 py-3">Ngôn ngữ</th>
+                            <th>Nội dung văn bản</th>
+                            <th class="text-center">Nghe thử (Web)</th>
+                            <th class="text-center pe-4">Hành động</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach (var translation in translations.OrderBy(t => t.Language))
+                    <tbody class="bg-white">
+                        @if (translations == null)
                         {
-                            var ready = IsReady(translation);
                             <tr>
-                                <td>
-                                    <div class="item-title">@GetLanguageLabel(translation.Language)</div>
-                                    <div class="item-subtitle">@translation.Language.ToUpperInvariant()</div>
-                                </td>
-                                <td>
-                                    <div class="text-clamp" title="@translation.Text">@translation.Text</div>
-                                </td>
-                                <td>
-                                    <span class="status-pill @(ready ? "success" : "info")">
-                                        <i class="bi @(ready ? "bi-check-circle" : "bi-phone")"></i>
-                                        @(ready ? "Đã cập nhật" : "Sẵn sàng TTS")
-                                    </span>
-                                </td>
-                                <td class="text-end">
-                                    <button class="btn btn-outline-primary btn-sm" @onclick="() => UpdateDeviceTts(translation)" disabled="@isGenerating">
-                                        @if (generatingLanguage == translation.Language)
-                                        {
-                                            <span class="spinner-border spinner-border-sm"></span>
-                                            <span>Đang cập nhật</span>
-                                        }
-                                        else
-                                        {
-                                            <i class="bi bi-arrow-repeat"></i>
-                                            <span>Cập nhật</span>
-                                        }
-                                    </button>
+                                <td colspan="4" class="text-center py-5">
+                                    <div class="spinner-border text-primary" role="status"></div>
                                 </td>
                             </tr>
+                        }
+                        else
+                        {
+                            @foreach (var t in translations)
+                            {
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span class="fs-5">@GetFlag(t.Language)</span>
+                                            <span class="fw-bold text-dark">@t.Language.ToUpper()</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-muted small text-truncate" style="max-width: 400px;" title="@t.Text">
+                                            @t.Text
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-secondary rounded-circle shadow-sm" 
+                                                @onclick="() => PlayPreview(t.Text, t.Language)"
+                                                title="Nghe thử giọng máy trình duyệt">
+                                            <i class="bi bi-volume-up-fill"></i>
+                                        </button>
+                                    </td>
+                                    <td class="text-center pe-4">
+                                        <button class="btn @(updatedLanguages.Contains(t.Language) ? "btn-success" : "btn-outline-primary") btn-sm px-4 rounded-pill shadow-sm"
+                                                @onclick="() => UpdateDeviceTts(t)"
+                                                disabled="@isGenerating">
+                                            @if (generatingLang == t.Language)
+                                            {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-cloud-arrow-up-fill me-1"></i>
+                                            }
+                                            @(updatedLanguages.Contains(t.Language) ? "Đã cập nhật" : "Cập nhật App")
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
                         }
                     </tbody>
                 </table>
             </div>
-        }
-    </section>
+        </div>
+    }
 </div>
+
+<style>
+    .table thead th { font-weight: 700; letter-spacing: 0.5px; border: none; }
+    .table tbody tr:hover { background-color: #f8faff; }
+    .animate__animated { animation-duration: 0.5s; }
+</style>
 
 @code {
     private List<PoiDto>? pois;
     private List<TranslationDto>? translations;
-    private HashSet<string> updatedLanguages = new(StringComparer.OrdinalIgnoreCase);
-    private int selectedPoiId;
+    private HashSet<string> updatedLanguages = new();
+    private int selectedPoiId = 0;
     private string? message;
-    private bool isError;
-    private bool isGenerating;
-    private string? generatingLanguage;
+    private bool isError = false;
+    private bool isGenerating = false;
+    private string? generatingLang;
 
-    private bool CanManageSelectedPoi => selectedPoiId > 0 && (Session.IsAdmin || Session.PoiId == selectedPoiId);
-
-    private string SelectedPoiName =>
-        selectedPoiId == 0
-            ? "Chọn POI để xem trạng thái audio."
-            : pois?.FirstOrDefault(p => p.Id == selectedPoiId)?.Name ?? $"POI #{selectedPoiId}";
-
-    private int ReadyCount => translations?.Count(IsReady) ?? 0;
-
-    private int DeviceTtsCount => Math.Max((translations?.Count ?? 0) - ReadyCount, 0);
-
-    // Công dụng: kiểm tra đăng nhập và tải danh sách POI được phép quản lý audio.
     protected override async Task OnInitializedAsync()
     {
-        if (!Session.IsLoggedIn)
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
-
+        if (!Session.IsLoggedIn) { Nav.NavigateTo("/login"); return; }
         await LoadPois();
     }
 
-    // Công dụng: lấy danh sách POI từ API và lọc theo quyền tài khoản.
     private async Task LoadPois()
     {
-        try
-        {
+        try {
             var http = HttpFactory.CreateClient("WebAPI");
-            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi") ?? new();
-            pois = Session.IsAdmin ? allPois : allPois.Where(p => p.Id == Session.PoiId).ToList();
-        }
-        catch (Exception ex)
-        {
-            SetMessage($"Không thể tải danh sách POI: {ex.Message}", true);
-        }
+            var allPois = await http.GetFromJsonAsync<List<PoiDto>>("/api/Poi");
+            pois = Session.IsAdmin ? allPois : allPois?.Where(p => p.Id == Session.PoiId).ToList();
+        } catch { isError = true; message = "Không thể kết nối API."; }
     }
 
-    // Công dụng: đổi POI đang xem và tải lại các bản dịch/audio tương ứng.
     private async Task OnPoiChanged(ChangeEventArgs e)
     {
-        selectedPoiId = int.TryParse(e.Value?.ToString(), out var id) ? id : 0;
-        translations = null;
+        selectedPoiId = int.Parse(e.Value?.ToString() ?? "0");
         updatedLanguages.Clear();
-        ClearMessage();
-
-        if (selectedPoiId > 0)
-        {
-            await LoadTranslations();
-        }
+        message = null;
+        if (selectedPoiId > 0) await LoadTranslations();
     }
 
-    // Công dụng: tải bản dịch của POI để quản lý audio/TTS theo từng ngôn ngữ.
     private async Task LoadTranslations()
     {
-        try
-        {
+        try {
             var http = HttpFactory.CreateClient("WebAPI");
-            translations = await http.GetFromJsonAsync<List<TranslationDto>>($"/api/Translation/{selectedPoiId}") ?? new();
-        }
-        catch (Exception ex)
-        {
-            translations = new();
-            SetMessage($"Không thể tải nội dung audio: {ex.Message}", true);
-        }
+            translations = await http.GetFromJsonAsync<List<TranslationDto>>($"/api/Translation/{selectedPoiId}");
+        } catch { isError = true; message = "Lỗi tải bản dịch."; }
     }
 
-    // Công dụng: cập nhật trạng thái TTS cho toàn bộ bản dịch của POI đang chọn.
-    private async Task UpdateAllDeviceTts()
+    // --- HÀM NGHE THỬ ---
+    private async Task PlayPreview(string text, string lang)
     {
-        if (translations == null)
-        {
-            return;
-        }
-
-        foreach (var translation in translations)
-        {
-            await UpdateDeviceTts(translation, showSuccessMessage: false);
-        }
-
-        SetMessage("Đã cập nhật trạng thái TTS cho tất cả ngôn ngữ.", false);
+        string browserLang = lang.ToLower() switch {
+            "vi" => "vi-VN", "en" => "en-US", "fr" => "fr-FR", "ja" => "ja-JP", "ko" => "ko-KR", "zh" => "zh-CN", _ => lang
+        };
+        await JS.InvokeVoidAsync("speakText", text, browserLang);
     }
 
-    // Công dụng: gửi một bản dịch sang API TTS để kiểm tra/cập nhật nội dung đọc trên mobile.
-    private async Task UpdateDeviceTts(TranslationDto translation, bool showSuccessMessage = true)
+    // --- HÀM CẬP NHẬT DATABASE ---
+    private async Task UpdateDeviceTts(TranslationDto t)
     {
-        isGenerating = true;
-        generatingLanguage = translation.Language;
-        ClearMessage();
-
-        try
-        {
+        isGenerating = true; generatingLang = t.Language;
+        try {
             var http = HttpFactory.CreateClient("WebAPI");
-            var response = await http.PostAsJsonAsync("/api/Tts/generate", new
-            {
-                PoiId = selectedPoiId,
-                Text = translation.Text,
-                Language = translation.Language
-            });
-
-            var result = await response.Content.ReadFromJsonAsync<TtsResult>();
-
-            if (response.IsSuccessStatusCode)
-            {
-                updatedLanguages.Add(translation.Language);
-
-                if (showSuccessMessage)
-                {
-                    SetMessage(result?.Message ?? "Đã cập nhật nội dung TTS.", false);
-                }
+            var response = await http.PostAsJsonAsync("/api/Tts/generate", new { PoiId = selectedPoiId, Text = t.Text, Language = t.Language });
+            if (response.IsSuccessStatusCode) {
+                updatedLanguages.Add(t.Language);
+                message = "✅ Đã đồng bộ nội dung. App Mobile sẽ đọc bản mới nhất!";
+                isError = false;
             }
-            else
-            {
-                SetMessage(result?.Message ?? "Không thể cập nhật nội dung TTS.", true);
-            }
-        }
-        catch (Exception ex)
-        {
-            SetMessage($"Không thể kết nối API: {ex.Message}", true);
-        }
-        finally
-        {
-            isGenerating = false;
-            generatingLanguage = null;
-        }
+        } catch { isError = true; message = "Lỗi kết nối server."; }
+        finally { isGenerating = false; generatingLang = null; }
     }
 
-    // Công dụng: xác định một bản dịch đã có audio file hoặc vừa được cập nhật trong phiên hiện tại.
-    private bool IsReady(TranslationDto translation) => translation.HasAudio || updatedLanguages.Contains(translation.Language);
-
-    // Công dụng: trả về tên ngôn ngữ thân thiện cho mã language.
-    private static string GetLanguageLabel(string code) => code.ToLowerInvariant() switch
-    {
-        "vi" => "Tiếng Việt",
-        "en" => "English",
-        "zh" => "Tiếng Trung",
-        "ja" => "Tiếng Nhật",
-        "ko" => "Tiếng Hàn",
-        "fr" => "Tiếng Pháp",
-        "de" => "Tiếng Đức",
-        _ => "Ngôn ngữ"
+    private string GetFlag(string code) => code.ToLower() switch {
+        "vi" => "🇻🇳", "en" => "🇺🇸", "zh" => "🇨🇳", "ja" => "🇯🇵", "ko" => "🇰🇷", "fr" => "🇫🇷", _ => "🌐"
     };
 
-    // Công dụng: hiển thị thông báo thành công hoặc lỗi cho người dùng.
-    private void SetMessage(string text, bool error)
-    {
-        message = text;
-        isError = error;
-    }
-
-    // Công dụng: xóa thông báo hiện tại trên giao diện.
-    private void ClearMessage()
-    {
-        message = null;
-        isError = false;
-    }
-
-    public class PoiDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = "";
-    }
-
-    public class TranslationDto
-    {
-        public int Id { get; set; }
-        public int PoiId { get; set; }
-        public string Language { get; set; } = "";
-        public string Text { get; set; } = "";
-        public bool HasAudio { get; set; }
-    }
-
-    public class TtsResult
-    {
-        public string? Message { get; set; }
-        public string? AudioUrl { get; set; }
-    }
+    public class PoiDto { public int Id { get; set; } public string Name { get; set; } = ""; }
+    public class TranslationDto { public int Id { get; set; } public string Language { get; set; } = ""; public string Text { get; set; } = ""; }
 }
