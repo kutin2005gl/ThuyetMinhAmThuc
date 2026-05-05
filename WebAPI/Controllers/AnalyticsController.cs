@@ -133,31 +133,40 @@ public class AnalyticsController : ControllerBase
     [HttpGet("avg-duration")]
     public async Task<IActionResult> GetAvgDuration()
     {
+        // 1. Lấy dữ liệu từ DB, chấp nhận cả những dòng có DurationSeconds = 0 
+        // để đảm bảo POI đó vẫn xuất hiện trong danh sách thống kê
         var avgRows = await _db.AnalyticsEvents
             .AsNoTracking()
-            .Where(e => ListenEventTypes.Contains(e.EventType.ToLower()) && e.PoiId != null && e.DurationSeconds > 0)
+            .Where(e => ListenEventTypes.Contains(e.EventType.ToLower()) && e.PoiId != null)
             .GroupBy(e => e.PoiId)
             .Select(g => new
             {
                 PoiId = g.Key,
-                AvgSeconds = g.Average(e => (double)e.DurationSeconds!.Value)
+                // Sử dụng Coalesce (??) để tránh lỗi nếu DurationSeconds bị null
+                AvgSeconds = g.Average(e => (double)(e.DurationSeconds ?? 0))
             })
             .ToListAsync();
 
         var poiIds = avgRows.Select(x => x.PoiId!.Value).ToList();
+
+        // 2. Lấy tên POI tương ứng
         var poiNames = await _db.Pois
             .AsNoTracking()
             .Where(p => poiIds.Contains(p.Id))
             .ToDictionaryAsync(p => p.Id, p => p.Name);
 
+        // 3. Trình bày dữ liệu
         var avg = avgRows
-            .OrderByDescending(x => x.AvgSeconds)
             .Select(x => new
             {
                 x.PoiId,
                 PoiName = poiNames.GetValueOrDefault(x.PoiId!.Value) ?? $"POI #{x.PoiId}",
                 AvgSeconds = (int)Math.Round(x.AvgSeconds)
-            });
+            })
+            // Sắp xếp theo thời gian nghe giảm dần
+            .OrderByDescending(x => x.AvgSeconds)
+            // Nếu danh sách quá dài, có thể thêm .Take(5) ở đây để Dashboard gọn đẹp
+            .ToList();
 
         return Ok(avg);
     }

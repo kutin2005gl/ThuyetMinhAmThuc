@@ -168,23 +168,13 @@ public partial class PoiInfoPage : ContentPage
 
         if (isSpeaking) return;
 
+        // --- BƯỚC 1: KHAI BÁO BIẾN ĐO THỜI GIAN ---
+        var startTime = DateTime.UtcNow;
+
         try
         {
             isSpeaking = true;
 
-            // 1. GỬI LOG VỀ SERVER TRƯỚC (Để Dashboard đếm số)
-            try
-            {
-                int poiId = Preferences.Get("highlight_poi_id", 0);
-                string sessionId = Preferences.Get("guest_session_id", "guest_user");
-
-                // Chú ý: Ông cần đảm bảo đã inject _poiService vào hoặc dùng HttpClient ở đây
-                var analyticsData = new { SessionId = sessionId, EventType = "listen", PoiId = poiId };
-                await _poiService.SendAnalyticsAsync(analyticsData); // Mở comment này khi đã có Service
-            }
-            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi gửi log: " + ex.Message); }
-
-            // 2. KHỞI TẠO TTS
             speechCts?.Cancel();
             speechCts = new CancellationTokenSource();
 
@@ -192,7 +182,6 @@ public partial class PoiInfoPage : ContentPage
                 "Đang phát audio...", "Playing audio...", "正在播放音频...",
                 "오디오 재생 중...", "音声を再生中...", "Lecture en cours...");
 
-            // 3. XỬ LÝ NGÔN NGỮ
             var locales = await TextToSpeech.Default.GetLocalesAsync();
             Locale? locale = locales?.FirstOrDefault(l =>
                 l.Language.StartsWith(language, StringComparison.OrdinalIgnoreCase))
@@ -200,12 +189,13 @@ public partial class PoiInfoPage : ContentPage
 
             var options = new SpeechOptions { Locale = locale, Pitch = 1.0f, Volume = 1.0f };
 
-            // 4. PHÁT ÂM THANH
-            await TextToSpeech.Default.SpeakAsync(text, options, speechCts.Token); 
+            // --- BƯỚC 2: PHÁT ÂM THANH VÀ CHỜ ĐỢI ---
+            // TTS sẽ chạy cho đến khi hết bài hoặc bị Cancel
+            await TextToSpeech.Default.SpeakAsync(text, options, speechCts.Token);
 
-        audioStatusLabel.Text = LanguageManager.Get(
-            "Đã phát xong", "Finished playing", "播放完成",
-            "재생 완료", "再生完了", "Lecture terminée");
+            audioStatusLabel.Text = LanguageManager.Get(
+                "Đã phát xong", "Finished playing", "播放完成",
+                "재생 완료", "再生完了", "Lecture terminée");
         }
         catch (OperationCanceledException)
         {
@@ -217,6 +207,32 @@ public partial class PoiInfoPage : ContentPage
         }
         finally
         {
+            // --- BƯỚC 3: TÍNH TOÁN VÀ GỬI LOG VỀ SERVER ---
+            // Đặt ở finally để dù đang nghe mà nhấn "Dừng" (Cancel) thì vẫn ghi nhận số giây đã nghe được
+            try
+            {
+                var endTime = DateTime.UtcNow;
+                var durationInSeconds = (int)(endTime - startTime).TotalSeconds;
+
+                // Chỉ gửi log nếu người dùng thực sự có nghe (ít nhất 1 giây)
+                if (durationInSeconds >= 1)
+                {
+                    int poiId = Preferences.Get("highlight_poi_id", 0);
+                    string sessionId = Preferences.Get("guest_session_id", "guest_user");
+
+                    var analyticsData = new
+                    {
+                        SessionId = sessionId,
+                        EventType = "poi_listen", // Dùng type chuẩn theo code Backend của ông
+                        PoiId = poiId,
+                        DurationSeconds = durationInSeconds // Gửi con số thực tế này lên
+                    };
+
+                    await _poiService.SendAnalyticsAsync(analyticsData);
+                }
+            }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine("Lỗi gửi log: " + ex.Message); }
+
             isSpeaking = false;
         }
     }
