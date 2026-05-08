@@ -34,6 +34,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="9.0.120" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" Condition="'$(Configuration)' == 'Debug'" />
 	</ItemGroup>
 
@@ -61,7 +62,10 @@
   <RunAOTCompilation>false</RunAOTCompilation>
   <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
   <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+  <AndroidLinkTool>r8</AndroidLinkTool>
+  <AndroidCreateProguardMappingFile>false</AndroidCreateProguardMappingFile>
   <PublishTrimmed>true</PublishTrimmed>
-  <AndroidPackageFormat>apk</AndroidPackageFormat>
+  <AndroidPackageFormats>apk;aab</AndroidPackageFormats>
+  <SatelliteResourceLanguages>vi;en;fr;ja;ko;zh-Hans;zh-Hant</SatelliteResourceLanguages>
 </PropertyGroup>
 </Project>
