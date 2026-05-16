@@ -9,6 +9,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<TranslateService>();
+builder.Services.AddSingleton<IMultiUserAudioQueueService, MultiUserAudioQueueService>();
 
 // Dùng SQLite cho dev
 builder.Services.AddDbContext<AppDbContext>(options =>

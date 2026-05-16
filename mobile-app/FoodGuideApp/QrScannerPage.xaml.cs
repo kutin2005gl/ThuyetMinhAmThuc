@@ -87,9 +87,13 @@ public partial class QrScannerPage : ContentPage
     {
         poiId = 0;
         var cleanedPath = path.Trim();
+        // Tách các đoạn trong đường dẫn (ví dụ: /p/1 thành ["p", "1"])
         var segments = cleanedPath.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        if (segments.Length == 2 && segments[0].Equals("poi", StringComparison.OrdinalIgnoreCase))
+        // Kiểm tra nếu có 2 đoạn và đoạn đầu là "p" hoặc "poi"
+        if (segments.Length == 2 &&
+           (segments[0].Equals("p", StringComparison.OrdinalIgnoreCase) ||
+            segments[0].Equals("poi", StringComparison.OrdinalIgnoreCase)))
         {
             return int.TryParse(segments[1], out poiId);
         }
